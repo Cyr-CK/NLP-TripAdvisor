@@ -82,6 +82,7 @@ class TripAdvisorSpecificRestaurantScrapper(TripAdvisorScraper):
     def get_review_cards(self):
         """
         Get the review cards from the soup.
+        @return: list of review cards (beautiful soup objects)
         """
         if self.soup:
             review_cards = self.soup.find_all(
@@ -94,6 +95,8 @@ class TripAdvisorSpecificRestaurantScrapper(TripAdvisorScraper):
     def get_review_page(self, review_cards):
         """
         Extract the review data from the review cards.
+        @param review_cards: list of review cards (beautiful soup objects)
+        @return: list of review data (liste de dicts)
         """
         corpus = []
         for card in review_cards:
@@ -164,6 +167,7 @@ class TripAdvisorSpecificRestaurantScrapper(TripAdvisorScraper):
     def get_all_pages(self):
         """
         Get all the reviews of the restaurant
+        @return: list of review data (liste de dicts)
         """
         page = 1
         corpus = []
@@ -210,6 +214,7 @@ class TripAdvisorRestaurantsScrapper(TripAdvisorScraper):
     def get_restaurants_cards(self):
         """
         Get the restaurant cards from the soup.
+        @return: list of restaurant cards (beautiful soup objects)
         """
         if self.soup:
             restaurant_cards = self.soup.find_all("div", class_="qeraN")
@@ -235,6 +240,8 @@ class TripAdvisorRestaurantsScrapper(TripAdvisorScraper):
     def extract_restaurant_data(self, restaurant_cards):
         """
         Extract the restaurant data from the restaurant cards.
+        @param restaurant_cards: list of restaurant cards (beautiful soup objects)
+        @return: list of restaurant data (liste de dicts)
         """
         corpus = []
         # restaurant_name = "biGQs _P fiohW alXOW oCpZu GzNcM nvOhm UTQMg ZTpaU mtnKn ngXxk"
@@ -289,6 +296,7 @@ class TripAdvisorRestaurantsScrapper(TripAdvisorScraper):
     def get_all_pages(self):
         """
         Get all the restaurants
+        @return: list of restaurant data (liste de dicts)
         """
         page = 1
         corpus = []
