@@ -69,7 +69,7 @@ class TripAdvisorScraper:
             print("Soup is not initialized. Please fetch the page first.")
 
 
-class TripAdvisorSpecificRestaurantScrapper(TripAdvisorScraper):
+class TripAdvisorSpecificRestaurantScraper(TripAdvisorScraper):
     """
     Class to scrap the reviews of a specific restaurant.
     Inherits from the TripAdvisorScraper class.
@@ -202,7 +202,7 @@ class TripAdvisorSpecificRestaurantScrapper(TripAdvisorScraper):
             return None
 
 
-class TripAdvisorRestaurantsScrapper(TripAdvisorScraper):
+class TripAdvisorRestaurantsScraper(TripAdvisorScraper):
     """
     Class to scrap the list of restaurants.
     """
@@ -218,6 +218,7 @@ class TripAdvisorRestaurantsScrapper(TripAdvisorScraper):
         """
         if self.soup:
             restaurant_cards = self.soup.find_all("div", class_="qeraN")
+            print(f"Found {len(restaurant_cards)} restaurant cards")
             return restaurant_cards
         else:
             print("Soup is not initialized. Please fetch the page first.")
@@ -291,6 +292,7 @@ class TripAdvisorRestaurantsScrapper(TripAdvisorScraper):
                 ),
             }
             corpus.append(doc)
+        print(f"Extracted {len(corpus)} restaurant data entries")
         return corpus
 
     def get_all_pages(self):
@@ -303,9 +305,12 @@ class TripAdvisorRestaurantsScrapper(TripAdvisorScraper):
         while self.url is not None:
             time.sleep(random.uniform(1, 3))
             new_cards = self.get_restaurants_cards()
+            if not new_cards:
+                print("No restaurant cards found")
+                break
             new_reg = self.extract_restaurant_data(new_cards)
             corpus.extend(new_reg)
-            print(f"Page {page} done")
+            print(f"Page {page} done, corpus size: {len(corpus)}")
             page += 1
             url = self.get_next_url()
             if url is not None:
