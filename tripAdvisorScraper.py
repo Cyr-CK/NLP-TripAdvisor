@@ -217,8 +217,9 @@ class TripAdvisorRestaurantsScraper(TripAdvisorScraper):
         @return: list of restaurant cards (beautiful soup objects)
         """
         if self.soup:
-            restaurant_cards = self.soup.find_all("div", class_="qeraN")
-            print(f"Found {len(restaurant_cards)} restaurant cards")
+            restaurant_cards = self.soup.find_all(
+                "div", class_="tbrcR _T DxHsn TwZIp rrkMt nSZNd DALUy Re"
+            )
             return restaurant_cards
         else:
             print("Soup is not initialized. Please fetch the page first.")
@@ -292,7 +293,6 @@ class TripAdvisorRestaurantsScraper(TripAdvisorScraper):
                 ),
             }
             corpus.append(doc)
-        print(f"Extracted {len(corpus)} restaurant data entries")
         return corpus
 
     def get_all_pages(self):
