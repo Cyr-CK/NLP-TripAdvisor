@@ -6,7 +6,6 @@ import string
 
 from utils.functions import clean_text, extract_by_regex
 
-
 class TripAdvisorScraper:
     """
     Base class for TripAdvisor scraping.
@@ -17,12 +16,14 @@ class TripAdvisorScraper:
         self.url_base = "https://www.tripadvisor.com"
         self.soup = None
         self.url = None
+        self.full_url = None
 
     def fetch_page(self, url):
         """
         Fetch the page and set the soup.
         """
-        self.url = self.url_base + url
+        self.url = url
+        self.full_url = self.url_base + url
         # Set headers
         random_request_id = "".join(
             random.choice(string.ascii_lowercase + string.digits) for i in range(180)
@@ -40,7 +41,7 @@ class TripAdvisorScraper:
         }
 
         # Send a GET request
-        response = requests.get(self.url, headers=headers)
+        response = requests.get(self.full_url, headers=headers)
         try:
             # Check encoding
 
@@ -67,7 +68,7 @@ class TripAdvisorScraper:
             print(self.soup.prettify())
         else:
             print("Soup is not initialized. Please fetch the page first.")
-
+            
 
 class TripAdvisorSpecificRestaurantScraper(TripAdvisorScraper):
     """
@@ -210,6 +211,7 @@ class TripAdvisorRestaurantsScraper(TripAdvisorScraper):
     def __init__(self):
         super().__init__()
         self.restaurant_data = []
+        self.ranking = 0
 
     def get_restaurants_cards(self):
         """
@@ -251,7 +253,11 @@ class TripAdvisorRestaurantsScraper(TripAdvisorScraper):
 
         restaurant_url = "BMQDV _F Gv wSSLS SwZTJ FGwzt ukgoS"
         restaurant_reviews = "jVDab W f u w JqMhy"
+        restaurant_type = "biGQs _P pZUbB hmDzD"
+        restaurant_price = "biGQs _P pZUbB hmDzD"
+        
         for restaurant_card in restaurant_cards:
+            self.ranking += 1
             scrap_restaurant_name = (
                 restaurant_card.find("a", {"class": restaurant_url}).text
                 if restaurant_card.find("a", {"class": restaurant_url})
@@ -269,16 +275,21 @@ class TripAdvisorRestaurantsScraper(TripAdvisorScraper):
                 if restaurant_card.find("div", {"class": restaurant_reviews})
                 else None
             )
-
+            scrap_restaurant_type = (
+                restaurant_card.find("span", {"class": restaurant_type}).text
+                if restaurant_card.find("span", {"class": restaurant_type})
+                else None
+            )
+            price_elements = [card.text for card in restaurant_card.find_all("span", {"class": restaurant_price}) if '$' in card.text]
+            scrap_restaurant_price = price_elements[0] if price_elements else None
+            
             doc = {
-                "restaurant_class": (
-                    scrap_restaurant_name.split(".")[0].strip()
-                    if scrap_restaurant_name is not None
-                    else None
-                ),
+                "restaurant_ranking": self.ranking,
                 "restaurant_name": (
                     scrap_restaurant_name.split(".")[1].strip()
-                    if scrap_restaurant_name is not None
+                    if scrap_restaurant_name and len(scrap_restaurant_name.split(".")) > 1
+                    else scrap_restaurant_name.split(".")[0].strip()
+                    if scrap_restaurant_name and len(scrap_restaurant_name.split(".")) > 0
                     else None
                 ),
                 "restaurant_url": (
@@ -289,6 +300,16 @@ class TripAdvisorRestaurantsScraper(TripAdvisorScraper):
                 "restaurant_reviews": (
                     scrap_restaurant_reviews
                     if scrap_restaurant_reviews is not None
+                    else None
+                ),
+                "restaurant_type": (
+                    scrap_restaurant_type
+                    if scrap_restaurant_type is not None
+                    else None
+                ),
+                "restaurant_price": (
+                    scrap_restaurant_price
+                    if scrap_restaurant_price is not None
                     else None
                 ),
             }
@@ -302,19 +323,21 @@ class TripAdvisorRestaurantsScraper(TripAdvisorScraper):
         """
         page = 1
         corpus = []
+        tries = 0
         while self.url is not None:
             time.sleep(random.uniform(1, 3))
+            self.fetch_page(self.url)
             new_cards = self.get_restaurants_cards()
             if not new_cards:
-                print("No restaurant cards found")
-                break
+                tries += 1
+                if tries > 10:
+                    raise Exception("No restaurant cards found - Aborting")
+                else:
+                    continue
             new_reg = self.extract_restaurant_data(new_cards)
             corpus.extend(new_reg)
             print(f"Page {page} done, corpus size: {len(corpus)}")
             page += 1
-            url = self.get_next_url()
-            if url is not None:
-                self.fetch_page(url)
-            else:
-                break
+            self.url = self.get_next_url()
+            tries = 0
         return corpus
