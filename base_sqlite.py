@@ -5,6 +5,7 @@ On suppose que les données sur les restaurants sont des dataframes pandas.
 
 import os
 import sqlite3
+import time
 import pandas as pd
 from tripAdvisorScraper import (
     TripAdvisorRestaurantsScraper,
@@ -113,7 +114,14 @@ def specific_restaurant(restaurant_name):
         df_all_restos = pd.read_csv("data/restaurants.csv")
 
     restaurant_data = df_all_restos[df_all_restos["restaurant_name"] == restaurant_name]
-    restaurant_url = restaurant_data["restaurant_url"].values[0]
+
+    if not restaurant_data.empty:
+        # Accès à l'URL du restaurant si trouvé
+        restaurant_url = restaurant_data["restaurant_url"].values[0]
+    else:
+        # Gestion du cas où le restaurant n'est pas trouvé
+        print(f"Aucun restaurant trouvé avec le nom : {restaurant_name}")
+        return None
 
     # On récupère les avis du restaurant
     scraper = TripAdvisorSpecificRestaurantScraper()
@@ -128,10 +136,13 @@ def specific_restaurant(restaurant_name):
 # INSERTION DES DONNEES DANS LES TABLES APRES CREATION EN DF PANDAS
 
 
-def remplissage_bdd(nom_resto):
+def remplissage_bdd(nom_resto, CSV=False):
     """
     Fonction qui remplit la base de données avec les données d'un restaurant
-    Se fait via df pandas, mais il faudrait ne plus passer par là à terme
+    Se fait via df pandas, on garde comme ca ?
+
+    nom_resto : str, nom du restaurant
+    CSV : bool, si on veut sauvegarder les avis dans un fichier csv
     """
 
     # # Insertion des données dans la table restaurants
@@ -143,12 +154,13 @@ def remplissage_bdd(nom_resto):
     # mauvais format : id_resto==restaurant_class, nom_resto==restaurant_name,
     # cuisine (existe pas), prix (existe pas)
     df_restos = df_restaurants.rename(
-        columns={"restaurant_class": "id_resto", "restaurant_name": "nom_resto"}
+        columns={
+            "restaurant_ranking": "id_resto",
+            "restaurant_name": "nom_resto",
+            "restaurant_type": "cuisine",
+            "restaurant_price": "prix",
+        }
     )
-    df_restos["cuisine"] = None  # pas d'info encore sur la cuisine
-    df_restos["prix"] = None  # pas d'info encore sur le prix
-
-    print(df_restos.columns)
 
     # supression colonnes en trop
     df_restos = df_restos.drop(columns=["restaurant_url", "restaurant_reviews"])
@@ -163,6 +175,8 @@ def remplissage_bdd(nom_resto):
 
     # lecture des données
     df_avis = specific_restaurant(nom_resto)
+    if df_avis is None:
+        return None
     # mauvais format : id(existe pas), id_resto(existe pas dans table), user_name==user_name,
     # review_text==review_text, rating=rating, date==date, contributions==contributions,
 
@@ -173,15 +187,45 @@ def remplissage_bdd(nom_resto):
     # passage en base de données
     df_avis.to_sql("avis", conn, if_exists="append", index=False)
 
+    # passage en csv
+    if CSV:
+        nom_csv = (
+            nom_resto.replace(" - ", "_")
+            .replace(" ", "_")
+            .replace("'", "")
+            .replace("à", "a")
+            .replace("é", "e")
+            .replace("è", "e")
+            .replace("ê", "e")
+            .replace("ô", "o")
+            .replace("î", "i")
+            .replace("û", "u")
+            .replace("ç", "c")
+        )
+        df_avis.to_csv(f"data/{nom_csv}.csv", index=False)
+
     # Insertion des données dans la table localisation
     # On ne peut pas car ces infos n'existent pas encore
 
 
 # TEST DE LA FONCTION
-create_bdd()
+# create_bdd()
 
-remplissage_bdd("L'Argot")
-remplissage_bdd("Les Terrasses de Lyon")
+# remplissage_bdd("L'Argot", CSV=True)
+# remplissage_bdd("Les Terrasses de Lyon", CSV=True)
+# remplissage_bdd("Frazarin", CSV=True)
+# remplissage_bdd("L'Auberge Des Canuts", CSV=True)
+# remplissage_bdd("The Phamily", CSV=True)  # que 35 avis < 50
+# remplissage_bdd("Tigermilk Lyon", CSV=True)
+# time.sleep(10)
+# remplissage_bdd("Le Taj Indien", CSV=True)  # que 36 avis < 50
+# remplissage_bdd("Le Casse Museau", CSV=True)
+# remplissage_bdd("L'affreux Jojo", CSV=True)
+# remplissage_bdd("Le Grand Réfectoire", CSV=True)
+# remplissage_bdd("Les 3 Dômes", CSV=True)
+# remplissage_bdd("Les Enfants Terribles", CSV=True)
+# remplissage_bdd("Casa Nobile", CSV=True)
+
 
 # LECTURE DES DONNEES
 print("Table restaurants")
@@ -189,7 +233,7 @@ cursor.execute("SELECT * FROM restaurants;")
 print(cursor.fetchall())
 
 print("Table avis")
-cursor.execute("SELECT * FROM avis;")
+cursor.execute("SELECT * FROM avis ORDER BY RANDOM() LIMIT 100;")
 print(cursor.fetchall())
 
 # Fermeture de la connexion
