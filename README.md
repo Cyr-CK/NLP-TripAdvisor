@@ -1,6 +1,5 @@
 # NLP-TripAdvisor
 
-
 ## ROADMAP : 
 
 Scrapping : BeautifulSoup
