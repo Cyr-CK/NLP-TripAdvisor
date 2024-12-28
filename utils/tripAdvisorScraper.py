@@ -3,7 +3,14 @@ import time
 import requests
 import random
 import string
+import locale
+from datetime import datetime
 from utils.functions import clean_text, extract_by_regex, filter_by_regex
+
+try:
+    locale.setlocale(locale.LC_TIME, 'fr_FR.UTF-8')
+except locale.Error:
+    locale.setlocale(locale.LC_TIME, 'C')
 
 class TripAdvisorScraper:
     """
@@ -38,6 +45,10 @@ class TripAdvisorScraper:
         response = requests.get(self.full_url, headers=headers)
         response.raise_for_status()
         self.soup = BeautifulSoup(response.content, "html.parser")
+        
+    def get_soup(self):
+        """Get the soup."""
+        return self.soup
 
     def print_soup(self):
         """Print the soup for debugging purposes."""
@@ -84,12 +95,17 @@ class TripAdvisorSpecificRestaurantScraper(TripAdvisorScraper):
 
         date = filter_by_regex(date, r"Rédigé le") if date else None
         rating = extract_by_regex(rating, r"(\d\,\d)") if rating else None
-        
+        try:
+            date = datetime.strptime(date, "%d %B %Y").strftime("%Y-%m-%d")
+        except ValueError:
+            date = None
+            
+        rating = float(rating.replace(",", ".")) if rating else None
         return {
-            "review_text": clean_text(review_text) if review_text else None,
-            "contributions": contributions,
-            "date": date,
             "user_name": user_name,
+            "review_text": clean_text(review_text) if review_text else None,
+            "date": date,
+            "contributions": contributions,
             "rating": rating,
         }
 
@@ -139,27 +155,48 @@ class TripAdvisorRestaurantsScraper(TripAdvisorScraper):
         url_class = "BMQDV _F Gv wSSLS SwZTJ FGwzt ukgoS"
         reviews_class = "IiChw"
         median_reviews_class = "Qqwyj"
+        restaurant_type = "YECgr Tsrjt"
+        restautant_price = "biGQs _P pZUbB KxBGd"
 
         name = restaurant_card.find("a", class_=name_class).get_text(strip=True) if restaurant_card.find("a", class_=name_class) else None
         url = restaurant_card.find("a", class_=url_class)["href"] if restaurant_card.find("a", class_=url_class) else None
         reviews = restaurant_card.find("span", class_=reviews_class).get_text(strip=True) if restaurant_card.find("span", class_=reviews_class) else None
         median_reviews = restaurant_card.find("span", class_=median_reviews_class).get_text(strip=True) if restaurant_card.find("span", class_=median_reviews_class) else None
-        
+        restaurant_type = restaurant_card.find_all("span", class_=restaurant_type) if restaurant_card.find("span", class_=restaurant_type) else None
+        restaurant_price = restaurant_card.find("span", class_=restautant_price).get_text(strip=True) if restaurant_card.find("span", class_=restautant_price) else None
+        euro_values = [element.get_text() for element in restaurant_card.find_all(text=lambda text: '€' in text)]
+        if len(euro_values) > 0:
+            for euro_value in euro_values:
+                if '€' in euro_value:
+                    restaurant_price = euro_value
+        else:
+            restaurant_price = None
+        if name:
+            name = name.replace("'", "") \
+            .replace("à", "a") \
+            .replace("é", "e") \
+            .replace("è", "e") \
+            .replace("ê", "e") \
+            .replace("ô", "o") \
+            .replace("î", "i") \
+            .replace("û", "u") \
+            .replace("ç", "c")
         ranking, name = name.split(".", 1) if name else (None, None)
-        restaurant_name_csv_clean = ''.join(e for e in name if e.isalnum() or e == ' ')
-        restaurant_name_clean = restaurant_name_csv_clean.replace(' ', '_')
-        url = url
+        # restaurant_name_csv_clean = ''.join(e for e in name if e.isalnum() or e == ' ')
+        # restaurant_name_clean = restaurant_name_csv_clean.replace(' ', '_')
+
         reviews = filter_by_regex(reviews, r'\W+') if reviews else None
         avg_review = extract_by_regex(median_reviews, r"(\d\,\d)") if median_reviews else None
         
         
         return {
-            "ranking": ranking,
-            "name": name,
-            "url": url,
-            "avg_review": avg_review,
-            "total_reviews": extract_by_regex(reviews, r"(\d+)?") if reviews else None,
-            "filename": restaurant_name_clean,
+            "restaurant_id": ranking,
+            "restaurant_name": name,
+            "restaurant_url": url,
+            "restaurant_avg_review": avg_review,
+            "restaurant_total_reviews": extract_by_regex(reviews, r"(\d+)?") if reviews else None,
+            "restaurant_price": restaurant_price,
+            "restaurant_type": restaurant_type[1].get_text(strip=True) if restaurant_type and len(restaurant_type) > 1 else None,
         }
 
     def get_all_restaurants(self):

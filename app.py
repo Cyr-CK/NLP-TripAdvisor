@@ -1,41 +1,26 @@
 import streamlit as st
-from tripAdvisorScraper import TripAdvisorRestaurantsScraper, TripAdvisorSpecificRestaurantScraper
-import pandas as pd
-import os
+from streamlit_option_menu import option_menu
+from views.analytics import analytics_page
+from views.home import home_page
+from views.predictions import prediction_page
+from views.scraper import scraper_page
 
-data_folder = './data'
-data_restaurants = os.path.join(data_folder, 'restaurants.csv')
-if not os.path.exists(data_folder):
-    os.makedirs(data_folder)
-    
-st.title("TripAdvisor Restaurant Data Scraper")
-    
-    
-df = pd.read_csv(data_restaurants)
-st.write('Data file exists.')
-st.write('Select a restaurant to download its data.')
 
-restaurant_name = st.selectbox('Restaurant:', df['name'].to_list())
+selected = option_menu(
+    menu_title="TripAdvisor NLP",
+    options=["Accueil", "Analytiques", "Prediction", "Scraper"],
+    icons=["house", "bar-chart", "robot", "download"],
+    default_index=0,
+    orientation="horizontal",
+)
 
-if st.button("Get Selection"):
-    st.write(f"Selected restaurant: {restaurant_name}")
-    st.write(f"Downloading data for {restaurant_name}...")
-    scraper = TripAdvisorSpecificRestaurantScraper()
-    
-    restaurant_data = df[df['name'] == restaurant_name]
-    restaurant_url = restaurant_data['url'].values[0]
-    restaurant_filename = restaurant_data['filename'].values[0]
-    restaurant_total_reviews = restaurant_data['total_reviews'].values[0]
-    data_restaurant = os.path.join(data_folder, f'{restaurant_filename}.csv')
-    
-    st.write(f"Aprox pages: {int(restaurant_total_reviews) // 15}")
-    
-    scraper = TripAdvisorSpecificRestaurantScraper()
-    scraper.fetch_page(restaurant_url)
-    print(f'url: {scraper.full_url}')
-    reviews = scraper.get_all_reviews()
-    df_restaurant = pd.DataFrame(reviews)
-    df_restaurant.to_csv(data_restaurant, index=False)
-    print('Selection data generated!')
-    
-    st.write(f"Data downloaded for {restaurant_name}.")
+
+
+if selected == "Accueil":
+    home_page()
+elif selected == "Prediction":
+    prediction_page()
+elif selected == "Analytiques":
+    analytics_page()
+elif selected == "Scraper":
+    scraper_page()
