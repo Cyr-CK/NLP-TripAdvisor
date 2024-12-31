@@ -1,4 +1,3 @@
-
 CREATE TABLE IF NOT EXISTS restaurants (
     restaurant_id SERIAL PRIMARY KEY,
     restaurant_name VARCHAR(255),
