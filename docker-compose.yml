@@ -36,3 +36,5 @@ services:
       POSTGRES_DBNAME: nlp
       POSTGRES_PORT: 32001
       SQLITE_PATH: path/to/tripadvisor.db
+      MISTRAL_URL: http://mistralservice:8501
+      MISTRAL_KEY: mistral
