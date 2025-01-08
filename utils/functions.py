@@ -15,3 +15,8 @@ def extract_by_regex(text: str, regex: str) -> str:
         else:
             return match.group(0)  # Return the entire match if no groups are defined
     return ""
+
+def filter_by_regex(text, pattern):
+    """Extract data using a regular expression."""
+    match = re.sub(pattern, '', text)
+    return match if match else None
