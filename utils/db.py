@@ -109,6 +109,23 @@ def get_restaurant_by_type(restaurant_type):
         print(err)
         return pd.DataFrame()
 
+def get_downloaded_restaurants():
+    """
+    Get all restaurants that have already been downloaded.
+    """
+    try:
+        cursor.execute(
+            """
+            SELECT * FROM RESTAURANTS 
+            WHERE restaurant_id IN (SELECT restaurant_id FROM REVIEWS)
+        """
+        )
+        restaurants = cursor.fetchall()
+        return pd.DataFrame([dict(restaurant) for restaurant in restaurants])
+    except psycopg2.Error as err:
+        print(err)
+        return pd.DataFrame()
+
 
 def get_not_downloaded_restaurants():
     """

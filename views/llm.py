@@ -33,7 +33,7 @@ def llm_page():
     df = get_all_restaurants()
 
     # Title of the page
-    st.title("🤖 Analyses utilisant un Large Language Model (IA)")
+    st.markdown("### 🤖 Analyses utilisant un Large Language Model (IA)")
 
     # Choice of the restaurant from which we want to analyze the reviews.
     restaurant_name = st.selectbox("Restaurant :", df["restaurant_name"].to_list())

@@ -72,7 +72,7 @@ def scraper_page():
 
     df = get_not_downloaded_restaurants()
 
-    st.title("TripAdvisor Restaurant Data Scraper")
+    st.markdown("### 🧲 TripAdvisor Restaurant Data Scraper")
     try:
         # df = pd.DataFrame(data_restaurants)
         rest_types = extract_types_from_df(df)

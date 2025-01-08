@@ -8,7 +8,7 @@ from views.scraper import scraper_page
 
 selected = option_menu(
     menu_title="TripAdvisor NLP",
-    options=["Accueil",  "Scraper", "Analysis", "LLM", "Carte"],
+    options=["Accueil",  "Scraper", "Analyse", "LLM", "Carte"],
     icons=["house", "download", "bar-chart", "robot", "map"],
     default_index=0,
     orientation="horizontal",
@@ -20,7 +20,7 @@ if selected == "Accueil":
     home_page()
 elif selected == "LLM":
     llm_page()
-elif selected == "Analytiques":
+elif selected == "Analyse":
     analytics_page()
 elif selected == "Scraper":
     scraper_page()
