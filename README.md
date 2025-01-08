@@ -2,9 +2,9 @@
 
 ## ROADMAP : 
 
-Scrapping : selenium ?
+Scrapping : BeautifulSoup
 
-Architecture bdd : SQLite ?
+Architecture bdd : SQLite
 
 Modèle NLP : restaurants proches / résumé d'avis / mots qui reviennent
 Analyse comparative des restaurants : notes, type de cuisine
