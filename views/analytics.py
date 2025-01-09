@@ -10,8 +10,8 @@ import nltk
 from utils.db import get_downloaded_restaurants, get_reviews_one_restaurant
 
 # Télécharger les ressources NLTK nécessaires
-nltk.download('punkt')
-nltk.download('punkt_tab')
+# nltk.download('punkt')
+# nltk.download('punkt_tab')
 
 def analytics_page():
     """
