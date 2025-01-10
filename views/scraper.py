@@ -1,12 +1,8 @@
-import streamlit as st
-import pandas as pd
+""" This module contains the "Scraper" page. """
+
 import time
 import random
 import streamlit as st
-import pandas as pd
-import os
-import psycopg2
-import psycopg2.extras
 from utils.tripAdvisorScraper import TripAdvisorSpecificRestaurantScraper
 from utils.db import save_reviews_to_db, get_not_downloaded_restaurants
 
@@ -72,19 +68,19 @@ def scraper_page():
 
     df = get_not_downloaded_restaurants()
 
-    st.markdown("### 🧲 TripAdvisor Restaurant Data Scraper")
+    st.markdown("### 🧲 Récupérer les données d'un restaurant sur TripAdvisor")
     try:
         # df = pd.DataFrame(data_restaurants)
         rest_types = extract_types_from_df(df)
-        download_option = st.radio("Download by:", ("Name", "Type"))
+        download_option = st.radio("Télécharger par :", ("Nom", "Type"))
 
-        if download_option == "Name":
+        if download_option == "Nom":
             restaurant_name = st.selectbox(
                 "Restaurant:", df["restaurant_name"].to_list()
             )
-            if st.button("Download", key="button_name_selection"):
-                st.write(f"Selected restaurant: {restaurant_name}")
-                st.write(f"Downloading data for {restaurant_name}...")
+            if st.button("Télécharger", key="button_name_selection"):
+                st.write(f"Restaurant Sélectionné: {restaurant_name}")
+                st.write(f"Téléchargement des données pour {restaurant_name}...")
                 filtered_df = df[df["restaurant_name"] == restaurant_name]
                 download_restaurant_data(filtered_df)
 
@@ -93,14 +89,16 @@ def scraper_page():
             filtered_df = df[
                 df["restaurant_type"].str.contains(restaurant_type, na=False)
             ]
-            st.write("Restaurants of selected type:")
+            st.write("Restaurants du type sélectionné :")
             st.dataframe(
                 filtered_df[
                     ["restaurant_name", "restaurant_type", "restaurant_total_reviews"]
                 ]
             )
-            if st.button("Download"):
+            if st.button("Télécharger"):
                 download_restaurant_data(filtered_df)
 
     except FileNotFoundError:
-        st.write("No data found. Run the scraper first.")
+        st.write(
+            "Aucune donnée trouvée. Faites tourner le scraper avant de recommencer."
+        )

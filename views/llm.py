@@ -1,10 +1,10 @@
 """
-This module contains the LLM page.
+This module contains the "LLM" page.
 """
 
 import streamlit as st
 from utils.MistralAPI import MistralAPI
-from utils.db import get_all_restaurants, get_reviews_one_restaurant
+from utils.db import get_downloaded_restaurants, get_reviews_one_restaurant
 
 
 def reviews_treatment(reviews, restaurant_name, restaurant_info):
@@ -30,7 +30,7 @@ def llm_page():
     Renders the LLM page.
     """
     # Get the data from the database
-    df = get_all_restaurants()
+    df = get_downloaded_restaurants()
 
     # Title of the page
     st.markdown("### 🤖 Analyses utilisant un Large Language Model (IA)")
@@ -41,7 +41,7 @@ def llm_page():
         "restaurant_id"
     ].values[0]
 
-    if st.button("Get Reviews", key="button_name_selection"):
+    if st.button("Résumer les avis", key="button_name_selection"):
         # Get the reviews of the selected restaurant
         filtered_df = get_reviews_one_restaurant(restaurant_id)
         reviews = filtered_df["review_text"]
@@ -56,4 +56,3 @@ def llm_page():
         st.write("\n\n\n")
         st.write("Commentaires du restaurant:")
         st.write(get_reviews_one_restaurant(restaurant_id))
-        st.write(restaurant_info)

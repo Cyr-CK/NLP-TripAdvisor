@@ -1,20 +1,17 @@
-import psycopg2
 import os
+import platform
+import psycopg2
 import psycopg2.extras
 import pandas as pd
-import platform
+from dotenv import load_dotenv
 
 if platform.system() == "Windows":
-    from dotenv import load_dotenv
-    import os
-
     # Specify the path to your .env file
-    dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
+    dotenv_path = os.path.join(os.path.dirname(__file__), ".env")
 
     # Load the .env file
     load_dotenv(dotenv_path)
 else:
-    from dotenv import load_dotenv
     load_dotenv()
 
 # Establish PostgreSQL connection
@@ -108,6 +105,7 @@ def get_restaurant_by_type(restaurant_type):
     except psycopg2.Error as err:
         print(err)
         return pd.DataFrame()
+
 
 def get_downloaded_restaurants():
     """
