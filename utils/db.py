@@ -5,59 +5,39 @@ import psycopg2.extras
 import sqlite3
 import pandas as pd
 import platform
+from dotenv import load_dotenv
 
 if platform.system() == "Windows":
-    from dotenv import load_dotenv
-    import os
-
     # Specify the path to your .env file
     dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
-
     # Load the .env file
     load_dotenv(dotenv_path)
 else:
-    from dotenv import load_dotenv
     load_dotenv()
 
 # Establish PostgreSQL connection
-
-if os.environ.get("DOCKER_ENV") == "true":
-    try:
-        db = psycopg2.connect(
-            host=os.environ.get("POSTGRES_HOST"),
-            user=os.environ.get("POSTGRES_USER"),
-            password=os.environ.get("POSTGRES_PASSWORD"),
-            dbname=os.environ.get("POSTGRES_DBNAME"),
-        )
-        cursor = db.cursor(cursor_factory=psycopg2.extras.DictCursor)
-    except psycopg2.Error as err:
-        print(f"Database connection error: {err}")
-else:
-    try:
-        db = psycopg2.connect(
-            host=os.environ.get("POSTGRES_HOST"),
-            user=os.environ.get("POSTGRES_USER"),
-            password=os.environ.get("POSTGRES_PASSWORD"),
-            dbname=os.environ.get("POSTGRES_DBNAME"),
-            port=os.environ.get("POSTGRES_PORT")
-        )
-        cursor = db.cursor(cursor_factory=psycopg2.extras.DictCursor)
-    except psycopg2.OperationalError as err:
-        print(f"Operational error: {err}")
-    except psycopg2.Error as err:
-        print(f"Database connection error: {err}")
 try:
     db = psycopg2.connect(
         host=os.environ.get("POSTGRES_HOST"),
         user=os.environ.get("POSTGRES_USER"),
         password=os.environ.get("POSTGRES_PASSWORD"),
         dbname=os.environ.get("POSTGRES_DBNAME"),
+        port=os.environ.get("POSTGRES_PORT")
     )
     cursor = db.cursor(cursor_factory=psycopg2.extras.DictCursor)
+except psycopg2.OperationalError as err:
+    print(f"Operational error: {err}")
 except psycopg2.Error as err:
     print(f"Database connection error: {err}")
 
+
 def get_all_reviews():
+    """
+    Fetch all reviews from the database.
+
+    Returns:
+        pd.DataFrame: DataFrame containing all reviews.
+    """
     try:
         cursor.execute("SELECT * FROM REVIEWS")
         reviews = cursor.fetchall()
@@ -65,8 +45,15 @@ def get_all_reviews():
     except psycopg2.Error as err:
         print(err)
         return pd.DataFrame()
-    
+
+
 def get_all_restaurants():
+    """
+    Fetch all restaurants from the database.
+
+    Returns:
+        pd.DataFrame: DataFrame containing all restaurants.
+    """
     try:
         cursor.execute("SELECT * FROM RESTAURANTS")
         restaurants = cursor.fetchall()
@@ -74,17 +61,37 @@ def get_all_restaurants():
     except psycopg2.Error as err:
         print(err)
         return pd.DataFrame()
-    
+
+
 def get_restaurant_by_type(restaurant_type):
+    """
+    Fetch restaurants by type from the database.
+
+    Args:
+        restaurant_type (str): The type of restaurant to fetch.
+
+    Returns:
+        pd.DataFrame: DataFrame containing restaurants of the specified type.
+    """
     try:
-        cursor.execute("SELECT * FROM RESTAURANTS WHERE restaurant_type = %s", (restaurant_type,))
+        cursor.execute(
+            "SELECT * FROM RESTAURANTS WHERE restaurant_type = %s",
+            (restaurant_type,)
+        )
         restaurants = cursor.fetchall()
         return pd.DataFrame([dict(restaurant) for restaurant in restaurants])
     except psycopg2.Error as err:
         print(err)
         return pd.DataFrame()
-    
+
+
 def get_not_downloaded_restaurants():
+    """
+    Fetch restaurants that have not been downloaded yet.
+
+    Returns:
+        pd.DataFrame: DataFrame containing restaurants not downloaded.
+    """
     try:
         cursor.execute("""
             SELECT * FROM RESTAURANTS 
@@ -96,14 +103,87 @@ def get_not_downloaded_restaurants():
         print(err)
         return pd.DataFrame()
 
+
 def save_reviews_to_db(restaurant_id, reviews):
+    """
+    Save reviews to the database.
+
+    Args:
+        restaurant_id (int): The ID of the restaurant.
+        reviews (list): List of reviews to save.
+    """
     for review in reviews:
         cursor.execute(
             """
             INSERT INTO reviews (restaurant_id, user_name, review_text, date, contributions, rating)
             VALUES (%s, %s, %s, %s, %s, %s)
             """,
-            (restaurant_id, review['user_name'], review['review_text'], review['date'], review['contributions'], review['rating'])
+            (
+                restaurant_id, review['user_name'], review['review_text'],
+                review['date'], review['contributions'], review['rating']
+            )
         )
     db.commit()
-    
+
+
+def get_downloaded_restaurants():
+    """
+    Fetch restaurants that have been downloaded.
+
+    Returns:
+        pd.DataFrame: DataFrame containing downloaded restaurants.
+    """
+    try:
+        cursor.execute("""
+            SELECT r.restaurant_id,
+                r.restaurant_name,
+                r.restaurant_avg_review,
+                r.restaurant_price,
+                r.restaurant_type, 
+                r.restaurant_total_reviews,
+                r.restaurant_url,
+                l.address,
+                l.latitude, 
+                l.longitude 
+            FROM restaurants r
+            JOIN locations l ON r.restaurant_id = l.restaurant_id
+            WHERE r.restaurant_id IN (SELECT restaurant_id FROM REVIEWS)
+        """)
+        restaurants = cursor.fetchall()
+        return pd.DataFrame([dict(restaurant) for restaurant in restaurants])
+    except psycopg2.Error as err:
+        print(err)
+        return pd.DataFrame()
+
+
+def get_restaurant_by_id(restaurant_ids):
+    """
+    Fetch restaurants by their IDs.
+
+    Args:
+        restaurant_ids (list): List of restaurant IDs to fetch.
+
+    Returns:
+        pd.DataFrame: DataFrame containing restaurants with the specified IDs.
+    """
+    try:
+        query = """
+            SELECT 
+                r.restaurant_id,
+                r.restaurant_name,
+                r.restaurant_avg_review,
+                r.restaurant_type,
+                l.latitude,
+                l.longitude,
+                r2.review_text 
+            FROM restaurants r
+            JOIN locations l ON l.restaurant_id = r.restaurant_id
+            JOIN reviews r2 ON r2.restaurant_id = r.restaurant_id 
+            WHERE r.restaurant_id IN (%s)
+        """ % ",".join(list(map(str, restaurant_ids)))
+        cursor.execute(query)
+        restaurants = cursor.fetchall()
+        return pd.DataFrame([dict(restaurant) for restaurant in restaurants])
+    except psycopg2.Error as err:
+        print(err)
+        return pd.DataFrame()

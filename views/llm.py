@@ -3,10 +3,8 @@ import streamlit as st
 
 def llm_page():
     
-    st.title("🤖 Prediction")
-    
-    st.write("This page is under construction222.")
-    
+    st.title("🤖 CahtBot")
+        
     mistral_key = st.text_input("Enter your Mistral key:")
 
     if mistral_key != "MISTRAL":
