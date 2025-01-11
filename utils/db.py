@@ -1,10 +1,8 @@
-import psycopg2
-import json
 import os
-import psycopg2.extras
-import sqlite3
-import pandas as pd
 import platform
+import psycopg2
+import psycopg2.extras
+import pandas as pd
 from dotenv import load_dotenv
 
 if platform.system() == "Windows":
@@ -175,6 +173,7 @@ def get_restaurant_by_id(restaurant_ids):
                 r.restaurant_type,
                 l.latitude,
                 l.longitude,
+                r2.rating,
                 r2.review_text 
             FROM restaurants r
             JOIN locations l ON l.restaurant_id = r.restaurant_id
@@ -184,6 +183,28 @@ def get_restaurant_by_id(restaurant_ids):
         cursor.execute(query)
         restaurants = cursor.fetchall()
         return pd.DataFrame([dict(restaurant) for restaurant in restaurants])
+    except psycopg2.Error as err:
+        print(err)
+        return pd.DataFrame()
+
+
+def get_reviews_one_restaurant(id):
+    """
+    Fetch reviews for a specific restaurant.
+
+    Args:
+        id (int): The ID of the restaurant.
+
+    Returns:
+        pd.DataFrame: DataFrame containing reviews for the specified restaurant.
+    """
+    try:
+        cursor.execute(
+            "SELECT * FROM REVIEWS WHERE restaurant_id = %s",
+            (id,)
+        )
+        reviews = cursor.fetchall()
+        return pd.DataFrame([dict(review) for review in reviews])
     except psycopg2.Error as err:
         print(err)
         return pd.DataFrame()

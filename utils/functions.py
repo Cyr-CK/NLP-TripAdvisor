@@ -175,7 +175,130 @@ def generate_sentiments_analysis(df: pd.DataFrame):
     Returns:
         pd.DataFrame: The dataframe with an additional 'sentiment' column.
     """
+    # def get_selected_restaurants(df):
+    #     st.markdown("#### Analyse de sentiments")
+
+    #     # Choice of the restaurant from which we want to analyze the reviews.
+    #     st.write("Choisissez les restaurants à analyser :")
+    #     select_all2 = st.checkbox("Selectionner Tous")
+    #     if select_all2:
+    #         restaurant_name2 = df["restaurant_name"].to_list()
+    #     else:
+    #         restaurant_name2 = st.multiselect(
+    #             "Restaurants choisis:",
+    #             df["restaurant_name"].to_list(),
+    #         )
+    #     return restaurant_name2
 
 
-    ## CODE HERE ##
+    # def get_reviews(restaurant_ids):
+    #     avis = pd.DataFrame()
+    #     for id in restaurant_ids:
+    #         filtered_df = get_reviews_one_restaurant(id)
+    #         temp = filtered_df[["restaurant_id", "review_text", "rating"]]
+    #         if avis.empty:
+    #             avis = temp
+    #         else:
+    #             avis = pd.concat([avis, temp], axis=0)
+    #     return avis
+
+
+    # def calculate_sentiment(avis):
+    #     avis["sentiment"] = avis["review_text"].apply(
+    #         lambda x: TextBlob(x).sentiment.polarity
+    #     )
+    #     return avis
+
+
+    # def plot_sentiment_vs_rating(data):
+    #     plt.figure(figsize=(10, 6))
+    #     plt.scatter(data["note_moyenne"], data["sentiment_moyen"])
+    #     for _, row in data.iterrows():
+    #         plt.text(
+    #             row["note_moyenne"],
+    #             row["sentiment_moyen"],
+    #             row["restaurant_name"],
+    #             fontsize=9,
+    #         )
+    #     plt.xlabel("Note Moyenne")
+    #     plt.ylabel("Sentiment Moyen")
+    #     plt.title("Sentiment Moyen vs Note Moyenne par Restaurant")
+    #     st.pyplot(plt)
+
+
+    # def extract_emotions(text):
+    #     """
+    #     Fonction qui extrait les scores d'émotions d'un texte.
+    #     Pour chaque émotion, on calcule le score en fonction du nombre d'occurrences.
+    #     """
+    #     emotion_scores = NRCLex(text).raw_emotion_scores
+    #     # Normaliser par le nombre total d'émotions détectées (optionnel)
+    #     total = sum(emotion_scores.values())
+    #     if total > 0:
+    #         return {
+    #             emotion: score / total
+    #             for emotion, score in emotion_scores.items()
+    #         }
+    #     return emotion_scores
+
+
+    # def analyze_sentiments(df):
+    #     restaurant_name2 = get_selected_restaurants(df)
+
+    #     # Button to launch the analysis
+    #     if st.button("Analyse de sentiments", key="analysis_button2"):
+
+    #         # Récupération des avis
+    #         restaurant_ids = df[df["restaurant_name"].isin(restaurant_name2)][
+    #             "restaurant_id"
+    #         ]
+    #         avis = get_reviews(restaurant_ids)
+
+    #         # Ajout d'une colonne "sentiment" avec la polarité des avis
+    #         avis = calculate_sentiment(avis)
+
+    #         # avis par restaurant
+    #         avis_par_resto = avis.groupby("restaurant_id")["sentiment"].mean()
+    #         note_moyenne = avis.groupby("restaurant_id")["rating"].mean()
+
+    #         avis_par_resto = pd.DataFrame(avis_par_resto)
+    #         note_moyenne = pd.DataFrame(note_moyenne)
+
+    #         notes_moyennes = pd.merge(avis_par_resto, note_moyenne, on="restaurant_id")
+    #         notes_moyennes = notes_moyennes.rename(
+    #             columns={"sentiment": "sentiment_moyen", "rating": "note_moyenne"}
+    #         )
+
+    #         # merge with restaurants
+    #         data = pd.merge(df, notes_moyennes, on="restaurant_id")
+
+    #         # Dispertion graph
+    #         plot_sentiment_vs_rating(data)
+
+    #         # Appliquer la fonction sur la colonne "review_text" et créer un DataFrame d'émotions
+    #         emotion_data = avis["review_text"].apply(extract_emotions)
+    #         emotion_df = pd.DataFrame(emotion_data.tolist())
+
+    #         # Reset index to be able to concatenate
+    #         avis.reset_index(drop=True, inplace=True)
+    #         emotion_df.reset_index(drop=True, inplace=True)
+
+    #         # Ajouter les scores d'émotions au DataFrame "avis"
+    #         avis = pd.concat([avis, emotion_df], axis=1)
+
+    #         # Calculer les moyennes des émotions pour chaque restaurant
+    #         emotions_par_resto = avis.groupby("restaurant_id")[
+    #             emotion_df.columns
+    #         ].mean()
+    #         st.write("Emotions moyennes par restaurant :")
+    #         st.write(emotions_par_resto)
+
+    #         st.write(
+    #             "Les emotions sont présentées de manière moche pour l'instant mais cela va bouger"
+    #         )
+
     return ("OK", "You'll see here your sentiment analysis result")
+
+
+    # Replace the placeholder with the function call
+    # analyze_sentiments(df)

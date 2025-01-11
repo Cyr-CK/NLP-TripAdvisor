@@ -1,3 +1,5 @@
+""" This module contains the "Analyse" page. """
+
 import streamlit as st
 from streamlit_option_menu import option_menu
 from views import analysis_filtered
@@ -10,7 +12,6 @@ def analytics_page():
 
     # Load restaurant data
     df = get_downloaded_restaurants()
-
     # Filter by type
     types = ['Tous'] + df['restaurant_type'].unique().tolist()
     selected_type = st.selectbox('Sélectionnez le type de restaurant', types)
