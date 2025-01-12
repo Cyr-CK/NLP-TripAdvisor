@@ -1,11 +1,17 @@
 import re
 import pandas as pd
+import numpy as np
+from textblob import TextBlob
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
 import nltk
 from nltk.stem.snowball import SnowballStemmer
+from nltk.tokenize import word_tokenize
+from gensim.models import Word2Vec
 from collections import Counter
 import altair as alt
+from nrclex import NRCLex  # Add this import
 
 nltk.download('punkt')
 nltk.download('punkt_tab')
@@ -178,24 +184,84 @@ def generate_word_frequencies_chart(df: pd.DataFrame) -> alt.Chart:
     return bar_chart
 
 
-def generate_word2vec(df: pd.DataFrame):
+def generate_word2vec(df: pd.DataFrame, three_dimensional: bool = False):
     """
     Generate a Word2Vec model from the cleaned text in the dataframe.
 
     Args:
         df (pd.DataFrame): The input dataframe containing 'cleaned_text' column.
+        three_dimensional (bool): Whether the analysis should be done in 3D
 
     Returns:
-        Word2Vec: The generated Word2Vec model.
+        restaurant_coords (np.array): PCA-projected coordinates of the restaurants.
     """
-    if len(df['restaurant_id'].unique()) < 2:
-        return ("error" , "Veuillez sélectionner plus de restaurants.")
+    
+    # if len(df['restaurant_id'].unique()) < 2:
+    #     raise ValueError ("error" , "Veuillez sélectionner au moins deux restaurants.")
 
-    if not {'cleaned_text'}.issubset(df.columns):
-        raise ValueError("Dataframe must contain 'cleaned_text' column.")
+    # if not {'cleaned_text'}.issubset(df.columns):
+    #     raise ValueError("Dataframe must contain 'cleaned_text' column.")
 
-    ## CODE HERE##
-    return ("OK" , "You'll see here your Word2Vec model")
+    # df_reviews = df.copy()
+    df["tokens"] = df["cleaned_text"].apply(
+        lambda x: word_tokenize(x.lower())
+    )
+
+    # merged_reviews = df.groupby("restaurant_id").agg({
+    #     "cleaned_text": lambda x: ". ".join(x), "restaurant_name":"first"
+    # }).reset_index()
+
+    # merged_reviews["tokens"] = merged_reviews["cleaned_text"].apply(
+    #     lambda x: word_tokenize(x.lower())
+    # )
+
+    # Entraîner le modèle Word2Vec
+    model = Word2Vec(
+        sentences=df["tokens"], #df["tokens"],
+        vector_size=100,
+        window=5,
+        min_count=1,
+        workers=4,
+    )
+    # Prétraitement des avis
+    # Fonction pour obtenir le vecteur moyen d'un avis
+    def get_avg_vector(tokens):
+        vectors = [model.wv[word] for word in tokens if word in model.wv]
+        if len(vectors) == 0:
+            return np.zeros(100)
+        # return vectors
+        return np.mean(vectors, axis=0)
+
+    # Calculer les vecteurs moyens pour chaque restaurant
+    df["avg_vector"] = df["tokens"].apply(get_avg_vector)
+
+    # merged_reviews["avg_vector"] = merged_reviews["tokens"].apply(get_avg_vector)
+
+    # Agréger les vecteurs par restaurant
+    restaurant_vectors = (
+        df.groupby("restaurant_id")
+        .agg({"avg_vector": lambda x: np.mean(list(x), axis=0), "restaurant_id": "first"})
+        .reset_index(drop=True)
+    )
+
+    restaurant_vectors = restaurant_vectors.drop_duplicates(subset="restaurant_id")
+    restaurant_vectors = restaurant_vectors.set_index("restaurant_id")
+    restaurant_vectors["restaurant_name"] = df.drop_duplicates(subset="restaurant_id").set_index("restaurant_id")["restaurant_name"]
+    restaurant_vectors.reset_index(inplace=True)
+    restaurant_names = restaurant_vectors["restaurant_name"]
+
+    # restaurant_names = merged_reviews["restaurant_name"]
+    if three_dimensional:
+        ncp = 3
+    else:
+        ncp = 2
+    # Réduction de dimensionnalité avec ACP
+    pca = PCA(n_components=ncp)
+    restaurant_coords = pca.fit_transform(
+        np.array(restaurant_vectors["avg_vector"].tolist())
+    )
+
+    return restaurant_coords, restaurant_names
 
 
 def generate_sentiments_analysis(df: pd.DataFrame):
@@ -208,6 +274,79 @@ def generate_sentiments_analysis(df: pd.DataFrame):
     Returns:
         pd.DataFrame: The dataframe with an additional 'sentiment' column.
     """
+
+    # df_reviews = df.copy()
+
+    # Ajout d'une colonne "sentiment" avec la polarité des reviews
+    df["sentiment"] = df["review_text"].apply(
+        lambda x: TextBlob(x).sentiment.polarity
+    )
+    # La polarité est comprise entre -1 et 1
+    # -1 étant très négatif, 1 très positif et 0 neutre
+
+    # reviews par restaurant
+    df_par_resto = df.groupby("restaurant_id")["sentiment"].mean()
+    note_moyenne = df.groupby("restaurant_id")["rating"].mean()
+
+    df_par_resto = pd.DataFrame(df_par_resto)
+    note_moyenne = pd.DataFrame(note_moyenne)
+
+    notes_moyennes = pd.merge(df_par_resto, note_moyenne, on="restaurant_id")
+    notes_moyennes = notes_moyennes.rename(
+        columns={"sentiment": "sentiment_moyen", "rating": "note_moyenne"}
+    )
+    # merge with restaurants
+    data = pd.merge(df, notes_moyennes, on="restaurant_id")
+
+    # Dispersion graph
+    plt.figure(figsize=(10, 6))
+    plt.scatter(data["note_moyenne"], data["sentiment_moyen"])
+    for _, row in data.iterrows():
+        plt.text(
+            row["note_moyenne"],
+            row["sentiment_moyen"],
+            row["restaurant_name"],
+            fontsize=9,
+        )
+    plt.xlabel("Note Moyenne")
+    plt.ylabel("Sentiment Moyen")
+    plt.title("Sentiment Moyen vs Note Moyenne par Restaurant")
+    # Fonction pour extraire les scores d'émotions
+    def extract_emotions(text):
+        """
+        Fonction qui extrait les scores d'émotions d'un texte.
+        Pour chaque émotion, on calcule le score en fonction du nombre d'occurrences.
+        """
+        emotion_scores = NRCLex(text).raw_emotion_scores
+        # Normaliser par le nombre total d'émotions détectées (optionnel)
+        total = sum(emotion_scores.values())
+        if total > 0:
+            return {
+                emotion: score / total
+                for emotion, score in emotion_scores.items()
+            }
+        return emotion_scores
+
+    # Appliquer la fonction sur la colonne "review_text" et créer un DataFrame d'émotions
+    emotion_data = df["review_text"].apply(extract_emotions)
+    emotion_df = pd.DataFrame(emotion_data.tolist())
+
+    # Reset index to be able to concatenate
+    df.reset_index(drop=True, inplace=True)
+    emotion_df.reset_index(drop=True, inplace=True)
+
+    # Ajouter les scores d'émotions au DataFrame "df"
+    df = pd.concat([df, emotion_df], axis=1)
+
+    # Calculer les moyennes des émotions pour chaque restaurant
+    emotions_par_resto = df.groupby("restaurant_id")[
+        emotion_df.columns
+    ].mean()
+
+    return emotions_par_resto
+
+
+
     # def get_selected_restaurants(df):
 
     #     # Choice of the restaurant from which we want to analyze the reviews.
@@ -324,7 +463,7 @@ def generate_sentiments_analysis(df: pd.DataFrame):
     #             "Les emotions sont présentées de manière moche pour l'instant mais cela va bouger"
     #         )
 
-    return ("OK", "You'll see here your sentiment analysis result")
+    # return ("OK", "You'll see here your sentiment analysis result")
 
 
     # Replace the placeholder with the function call
