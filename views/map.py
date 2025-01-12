@@ -3,8 +3,7 @@ from utils.db import get_downloaded_restaurants
 import folium
 from streamlit_folium import folium_static
 
-def map_page():
-    df = get_downloaded_restaurants()
+def map_page(df):
     st.title("Carte des restaurants")
     # Create a map centered around the average location
     m = folium.Map(location=[df['latitude'].mean(), df['longitude'].mean()], zoom_start=12, tiles='cartodb positron')

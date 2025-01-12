@@ -3,16 +3,15 @@ import pandas as pd
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import nltk
-from nltk.corpus import stopwords
 from nltk.stem.snowball import SnowballStemmer
 from collections import Counter
 import altair as alt
 
-if not nltk.data.find('tokenizers/punkt'):
-    nltk.download('punkt')
-elif not nltk.data.find('corpora/stopwords'):
-    nltk.download('stopwords')
-
+nltk.download('punkt')
+nltk.download('punkt_tab')
+nltk.download('wordnet')
+nltk.download('stopwords')
+from nltk.corpus import stopwords
 
 def clean_text(text: str) -> str:
     """
@@ -27,6 +26,41 @@ def clean_text(text: str) -> str:
     txt = text.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
     txt = txt.replace('  ', ' ')
     return txt.strip()
+
+def extract_types_from_df(df, original_columns=False):
+    """
+    Extract unique restaurant types from the DataFrame.
+
+    Args:
+        df (pd.DataFrame): The input dataframe containing 'restaurant_type' column.
+        original_columns (bool): If True, return a dictionary with types and all that match.
+
+    Returns:
+        list or dict: A list of unique restaurant types or a dictionary with types and all that match.
+    """
+    rest_types = list()
+    try:
+        df["restaurant_type"] = df["restaurant_type"].apply(
+            lambda x: None if "€" in str(x) else x
+        )
+        temp_rest_types = df["restaurant_type"].dropna().unique()
+        for rest_type in temp_rest_types:
+            types = rest_type.split(",")
+            for type in types:
+                rest_types.append(type.strip())
+        rest_types = list(set(rest_types))
+        rest_types.sort()
+        
+        if original_columns:
+            type_dict = {type: df[df["restaurant_type"].str.contains(type, na=False)]["restaurant_type"].tolist() for type in rest_types}
+            return type_dict
+        
+        return rest_types
+    except KeyError:
+        return rest_types
+    except Exception as e:
+        print(f"Error: {e}")
+        return rest_types
 
 
 def extract_by_regex(text: str, regex: str) -> str:
@@ -156,7 +190,6 @@ def generate_word2vec(df: pd.DataFrame):
     """
     if len(df['restaurant_id'].unique()) < 2:
         return ("error" , "Veuillez sélectionner plus de restaurants.")
-        # raise ValueError("Veuillez sélectionner plus de restaurants.")
 
     if not {'cleaned_text'}.issubset(df.columns):
         raise ValueError("Dataframe must contain 'cleaned_text' column.")
@@ -176,7 +209,6 @@ def generate_sentiments_analysis(df: pd.DataFrame):
         pd.DataFrame: The dataframe with an additional 'sentiment' column.
     """
     # def get_selected_restaurants(df):
-    #     st.markdown("#### Analyse de sentiments")
 
     #     # Choice of the restaurant from which we want to analyze the reviews.
     #     st.write("Choisissez les restaurants à analyser :")
@@ -193,7 +225,6 @@ def generate_sentiments_analysis(df: pd.DataFrame):
 
     # def get_reviews(restaurant_ids):
     #     avis = pd.DataFrame()
-    #     for id in restaurant_ids:
     #         filtered_df = get_reviews_one_restaurant(id)
     #         temp = filtered_df[["restaurant_id", "review_text", "rating"]]
     #         if avis.empty:
@@ -206,7 +237,6 @@ def generate_sentiments_analysis(df: pd.DataFrame):
     # def calculate_sentiment(avis):
     #     avis["sentiment"] = avis["review_text"].apply(
     #         lambda x: TextBlob(x).sentiment.polarity
-    #     )
     #     return avis
 
 
@@ -214,7 +244,6 @@ def generate_sentiments_analysis(df: pd.DataFrame):
     #     plt.figure(figsize=(10, 6))
     #     plt.scatter(data["note_moyenne"], data["sentiment_moyen"])
     #     for _, row in data.iterrows():
-    #         plt.text(
     #             row["note_moyenne"],
     #             row["sentiment_moyen"],
     #             row["restaurant_name"],
@@ -231,7 +260,6 @@ def generate_sentiments_analysis(df: pd.DataFrame):
     #     Fonction qui extrait les scores d'émotions d'un texte.
     #     Pour chaque émotion, on calcule le score en fonction du nombre d'occurrences.
     #     """
-    #     emotion_scores = NRCLex(text).raw_emotion_scores
     #     # Normaliser par le nombre total d'émotions détectées (optionnel)
     #     total = sum(emotion_scores.values())
     #     if total > 0:
@@ -248,7 +276,6 @@ def generate_sentiments_analysis(df: pd.DataFrame):
     #     # Button to launch the analysis
     #     if st.button("Analyse de sentiments", key="analysis_button2"):
 
-    #         # Récupération des avis
     #         restaurant_ids = df[df["restaurant_name"].isin(restaurant_name2)][
     #             "restaurant_id"
     #         ]

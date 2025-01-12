@@ -109,89 +109,6 @@ def analytics_filtered_page(df):
     )
     st.pyplot(plt)
         
-        
-################################################################
-# WORD2VEC
-################################################################
-    
-
-    ## CODE HERE YOUR FUNCTION MAKE ANYTHING YOU NEED WITH TO SHOW THE RESULT##
-    result = generate_word2vec(df)
-    if result[0] == "error":
-        st.warning(result[1])
-    else:
-        st.success(result[1])
-    
-    reviews = df
-    reviews["tokens"] = reviews["cleaned_text"].apply(
-        lambda x: word_tokenize(x.lower())
-    )
-    # Entraîner le modèle Word2Vec
-    model = Word2Vec(
-        sentences=reviews["tokens"],
-        vector_size=100,
-        window=5,
-        min_count=1,
-        workers=4,
-    )
-    # Prétraitement des avis
-    # Fonction pour obtenir le vecteur moyen d'un avis
-    def get_avg_vector(tokens):
-        vectors = [model.wv[word] for word in tokens if word in model.wv]
-        if len(vectors) == 0:
-            return np.zeros(100)
-        return np.mean(vectors, axis=0)
-
-    # Calculer les vecteurs moyens pour chaque restaurant
-    reviews["avg_vector"] = reviews["tokens"].apply(get_avg_vector)
-
-    # Agréger les vecteurs par restaurant
-    restaurant_vectors = (
-        reviews.groupby("restaurant_id")
-        .agg({"avg_vector": lambda x: np.mean(list(x), axis=0), "restaurant_id": "first"})
-        .reset_index(drop=True)
-    )
-
-    restaurant_vectors = restaurant_vectors.drop_duplicates(subset="restaurant_id")
-    restaurant_vectors = restaurant_vectors.set_index("restaurant_id")
-    restaurant_vectors["restaurant_name"] = df.drop_duplicates(subset="restaurant_id").set_index("restaurant_id")["restaurant_name"]
-    restaurant_vectors.reset_index(inplace=True)
-
-    # Réduction de dimensionnalité avec ACP
-    from sklearn.decomposition import PCA
-
-    pca = PCA(n_components=2, random_state=42)
-    restaurant_coords = pca.fit_transform(
-        np.array(restaurant_vectors["avg_vector"].tolist())
-    )
-
-    fig = go.Figure()
-
-    # Ajout des points de scatter
-    fig.add_trace(
-        go.Scatter(
-            x=restaurant_coords[:, 0],
-            y=restaurant_coords[:, 1],
-            mode="markers+text",
-            marker=dict(size=10, color="blue"),
-            text=restaurant_vectors["restaurant_name"],
-            textposition="top center",
-            hoverinfo="text",
-        )
-    )
-
-    # Mise à jour du layout
-    fig.update_layout(
-        title="Représentation des restaurants basée sur les avis (ACP)",
-        xaxis_title="Dimension 1",
-        yaxis_title="Dimension 2",
-        width=800,
-        height=600,
-    )
-
-    # Affichage du graphique dans Streamlit
-    st.plotly_chart(fig)
-
 
 ################################################################
 # WORDCLOUD
@@ -215,5 +132,93 @@ def analytics_filtered_page(df):
         # Use the function to generate and display the chart
         bar_chart = generate_word_frequencies_chart(df)
         st.altair_chart(bar_chart, use_container_width=True)
+        
+################################################################
+# WORD2VEC
+################################################################
+    
+
+    ## CODE HERE YOUR FUNCTION MAKE ANYTHING YOU NEED WITH TO SHOW THE RESULT##
+    if len(df) <= 1:
+        st.warning("Le dataframe doit contenir plus d'une ligne.")
+        # st.warning("Vous avez besoin de plus d'un restaurant pour créer Word2Vec.")
+    else:
+        result = generate_word2vec(df)
+    
+        reviews = df
+        reviews["tokens"] = reviews["cleaned_text"].apply(
+            lambda x: word_tokenize(x.lower())
+        )
+        # Entraîner le modèle Word2Vec
+        model = Word2Vec(
+            sentences=reviews["tokens"],
+            vector_size=100,
+            window=5,
+            min_count=1,
+            workers=4,
+        )
+        # Prétraitement des avis
+        # Fonction pour obtenir le vecteur moyen d'un avis
+        def get_avg_vector(tokens):
+            vectors = [model.wv[word] for word in tokens if word in model.wv]
+            if len(vectors) == 0:
+                return np.zeros(100)
+            return np.mean(vectors, axis=0)
+
+        # Calculer les vecteurs moyens pour chaque restaurant
+        reviews["avg_vector"] = reviews["tokens"].apply(get_avg_vector)
+
+        # Agréger les vecteurs par restaurant
+        restaurant_vectors = (
+            reviews.groupby("restaurant_id")
+            .agg({"avg_vector": lambda x: np.mean(list(x), axis=0), "restaurant_id": "first"})
+            .reset_index(drop=True)
+        )
+
+        restaurant_vectors = restaurant_vectors.drop_duplicates(subset="restaurant_id")
+        restaurant_vectors = restaurant_vectors.set_index("restaurant_id")
+        restaurant_vectors["restaurant_name"] = df.drop_duplicates(subset="restaurant_id").set_index("restaurant_id")["restaurant_name"]
+        restaurant_vectors.reset_index(inplace=True)
+
+        # Réduction de dimensionnalité avec ACP
+        from sklearn.decomposition import PCA
+
+        if len(restaurant_vectors) < 2:
+            st.warning("Pas assez de restaurants pour effectuer l'ACP.")
+            return
+        else:
+            pca = PCA(n_components=2)
+            restaurant_coords = pca.fit_transform(
+                np.array(restaurant_vectors["avg_vector"].tolist())
+            )
+        
+        # Create a new figure for the scatter plot
+        fig = go.Figure()
+
+        # Ajout des points de scatter
+        fig.add_trace(
+            go.Scatter(
+                x=restaurant_coords[:, 0],
+                y=restaurant_coords[:, 1],
+                mode="markers+text",
+                marker=dict(size=10, color="blue"),
+                text=restaurant_vectors["restaurant_name"],
+                textposition="top center",
+                hoverinfo="text",
+            )
+        )
+
+        # Mise à jour du layout
+        fig.update_layout(
+            title="Représentation des restaurants basée sur les avis (ACP)",
+            xaxis_title="Dimension 1",
+            yaxis_title="Dimension 2",
+            width=800,
+            height=600,
+        )
+
+        # Affichage du graphique dans Streamlit
+        st.plotly_chart(fig)
+
         
 

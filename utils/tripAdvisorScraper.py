@@ -6,6 +6,7 @@ import string
 import locale
 from datetime import datetime
 from utils.functions import clean_text, extract_by_regex, filter_by_regex
+import streamlit as st
 
 try:
     locale.setlocale(locale.LC_TIME, 'fr_FR.UTF-8')
