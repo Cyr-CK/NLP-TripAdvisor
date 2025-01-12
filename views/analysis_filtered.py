@@ -105,7 +105,7 @@ def analytics_filtered_page(df):
     st.write(emotions_par_resto)
 
     st.write(
-        "Les emotions sont présentées de manière moche pour l'instant mais cela va bouger"
+        "Les émotions sont présentées de manière moche pour l'instant mais cela va bouger"
     )
     st.pyplot(plt)
         
@@ -119,7 +119,7 @@ def analytics_filtered_page(df):
         if len(df) == 1:
             st.warning("Vous avez besoin de plus d'un restaurant pour créer Word2Vec.")
         else:
-            st.write("Le nuage de mots ci-dessus représente les mots les plus fréquents dans les df_reviews des restaurants sélectionnés.")
+            st.write("Le nuage de mots ci-dessus représente les mots les plus fréquents dans les avis des restaurants sélectionnés.")
             wordcloud = generate_wordcloud(df)
             plt.figure(figsize=(10, 5))
             plt.imshow(wordcloud, interpolation='bilinear')
@@ -219,6 +219,3 @@ def analytics_filtered_page(df):
 
         # Affichage du graphique dans Streamlit
         st.plotly_chart(fig)
-
-        
-
