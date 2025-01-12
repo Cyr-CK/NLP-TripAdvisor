@@ -22,11 +22,11 @@ def map_page(df):
         popup_content = f"""
         <div>
             <h4>{row['restaurant_name']}</h4>
-            <p><strong>Address:</strong> {row['address']}</p>
-            <p><strong>Average Review:</strong> {row['restaurant_avg_review']}</p>
-            <p><strong>Number of Reviews:</strong> {row['restaurant_total_reviews']}</p>
-            <p><strong>Price:</strong> {row['restaurant_price']}</p>
-            <p><a href="https://www.tripadvisor.fr/{row['restaurant_url']}" target="_blank">Visit on TripAdvisor</a></p>
+            <p><strong>Adresse :</strong> {row['address']}</p>
+            <p><strong>Note moyenne :</strong> {row['restaurant_avg_review']}</p>
+            <p><strong>Nombre d'avis :</strong> {row['restaurant_total_reviews']}</p>
+            <p><strong>Prix :</strong> {row['restaurant_price']}</p>
+            <p><a href="https://www.tripadvisor.fr/{row['restaurant_url']}" target="_blank">Visiter sur TripAdvisor</a></p>
         </div>
         """
         folium.Marker(
@@ -56,7 +56,7 @@ def map_page(df):
                         {row['restaurant_price']}
                     </div>
                 </div>
-                <p><strong>Address:</strong> {row['address']}</p>
-                <p><a href="https://www.tripadvisor.fr/{row['restaurant_url']}" target="_blank">Visit on TripAdvisor</a></p>
+                <p><strong>Adresse :</strong> {row['address']}</p>
+                <p><a href="https://www.tripadvisor.fr/{row['restaurant_url']}" target="_blank">Visiter sur TripAdvisor</a></p>
             </div>
             """, unsafe_allow_html=True)
