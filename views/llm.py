@@ -3,6 +3,7 @@ This module contains the "LLM" page.
 """
 
 import streamlit as st
+import os
 from utils.MistralAPI import MistralAPI
 from utils.db import get_downloaded_restaurants, get_reviews_one_restaurant
 
@@ -25,13 +26,10 @@ def reviews_treatment(reviews, restaurant_name, restaurant_info):
     return query_and_reviews
 
 
-def llm_page():
+def llm_page(df):
     """
     Renders the LLM page.
     """
-    # Get the data from the database
-    df = get_downloaded_restaurants()
-
     # Title of the page
     st.markdown("### 🤖 Analyses utilisant un Large Language Model (IA)")
 
@@ -43,16 +41,24 @@ def llm_page():
 
     if st.button("Résumer les avis", key="button_name_selection"):
         # Get the reviews of the selected restaurant
-        filtered_df = get_reviews_one_restaurant(restaurant_id)
-        reviews = filtered_df["review_text"]
-        restaurant_info = df[df["restaurant_name"] == restaurant_name]
+        mistral_api_key = os.environ.get("MISTRAL_API_KEY")
+        
+        try: 
+            st.write("\n\n\n")
+            filtered_df = get_reviews_one_restaurant(restaurant_id)
+            reviews = filtered_df["review_text"]
+            restaurant_info = df[df["restaurant_name"] == restaurant_name]
 
-        # Call the API to analyse the reviews of the restaurant
-        ministral8b = MistralAPI(model="ministral-8b-latest")
-        reviews_cleaned = reviews_treatment(reviews, restaurant_name, restaurant_info)
-        st.write(ministral8b.query(reviews_cleaned))
+            # Call the API to analyse the reviews of the restaurant
+            mistral8b = MistralAPI(model="ministral-3b-latest")
+            reviews_cleaned = reviews_treatment(reviews, restaurant_name, restaurant_info)
+            st.write(mistral8b.query(reviews_cleaned))
 
-        # Get the reviews of the restaurant
-        st.write("\n\n\n")
-        st.write("Commentaires du restaurant:")
-        st.write(get_reviews_one_restaurant(restaurant_id))
+            # Get the reviews of the restaurant
+            st.write("\n\n\n")
+            st.write("Commentaires du restaurant:")
+            st.write(get_reviews_one_restaurant(restaurant_id))
+        except Exception as e:
+            st.warning("Please set up the MISTRAL_API_KEY in the Streamlit secrets.")
+            print(f"Error: {e}")
+            return

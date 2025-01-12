@@ -22,11 +22,24 @@ try:
         dbname=os.environ.get("POSTGRES_DBNAME"),
         port=os.environ.get("POSTGRES_PORT")
     )
-    cursor = db.cursor(cursor_factory=psycopg2.extras.DictCursor)
 except psycopg2.OperationalError as err:
     print(f"Operational error: {err}")
 except psycopg2.Error as err:
     print(f"Database connection error: {err}")
+
+
+def get_cursor():
+    """
+    Validate and obtain a cursor for database operations.
+
+    Returns:
+        cursor: A database cursor.
+    """
+    try:
+        return db.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    except psycopg2.Error as err:
+        print(f"Error obtaining cursor: {err}")
+        return None
 
 
 def get_all_reviews():
@@ -36,6 +49,9 @@ def get_all_reviews():
     Returns:
         pd.DataFrame: DataFrame containing all reviews.
     """
+    cursor = get_cursor()
+    if cursor is None:
+        return pd.DataFrame()
     try:
         cursor.execute("SELECT * FROM REVIEWS")
         reviews = cursor.fetchall()
@@ -43,6 +59,8 @@ def get_all_reviews():
     except psycopg2.Error as err:
         print(err)
         return pd.DataFrame()
+    finally:
+        cursor.close()
 
 
 def get_all_restaurants():
@@ -52,6 +70,9 @@ def get_all_restaurants():
     Returns:
         pd.DataFrame: DataFrame containing all restaurants.
     """
+    cursor = get_cursor()
+    if cursor is None:
+        return pd.DataFrame()
     try:
         cursor.execute("SELECT * FROM RESTAURANTS")
         restaurants = cursor.fetchall()
@@ -59,6 +80,8 @@ def get_all_restaurants():
     except psycopg2.Error as err:
         print(err)
         return pd.DataFrame()
+    finally:
+        cursor.close()
 
 
 def get_restaurant_by_type(restaurant_type):
@@ -71,6 +94,9 @@ def get_restaurant_by_type(restaurant_type):
     Returns:
         pd.DataFrame: DataFrame containing restaurants of the specified type.
     """
+    cursor = get_cursor()
+    if cursor is None:
+        return pd.DataFrame()
     try:
         cursor.execute(
             "SELECT * FROM RESTAURANTS WHERE restaurant_type = %s",
@@ -81,6 +107,8 @@ def get_restaurant_by_type(restaurant_type):
     except psycopg2.Error as err:
         print(err)
         return pd.DataFrame()
+    finally:
+        cursor.close()
 
 
 def get_not_downloaded_restaurants():
@@ -90,6 +118,9 @@ def get_not_downloaded_restaurants():
     Returns:
         pd.DataFrame: DataFrame containing restaurants not downloaded.
     """
+    cursor = get_cursor()
+    if cursor is None:
+        return pd.DataFrame()
     try:
         cursor.execute("""
             SELECT * FROM RESTAURANTS 
@@ -100,6 +131,8 @@ def get_not_downloaded_restaurants():
     except psycopg2.Error as err:
         print(err)
         return pd.DataFrame()
+    finally:
+        cursor.close()
 
 
 def save_reviews_to_db(restaurant_id, reviews):
@@ -110,18 +143,26 @@ def save_reviews_to_db(restaurant_id, reviews):
         restaurant_id (int): The ID of the restaurant.
         reviews (list): List of reviews to save.
     """
-    for review in reviews:
-        cursor.execute(
-            """
-            INSERT INTO reviews (restaurant_id, user_name, review_text, date, contributions, rating)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            """,
-            (
-                restaurant_id, review['user_name'], review['review_text'],
-                review['date'], review['contributions'], review['rating']
+    cursor = get_cursor()
+    if cursor is None:
+        return
+    try:
+        for review in reviews:
+            cursor.execute(
+                """
+                INSERT INTO reviews (restaurant_id, user_name, review_text, date, contributions, rating)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    restaurant_id, review['user_name'], review['review_text'],
+                    review['date'], review['contributions'], review['rating']
+                )
             )
-        )
-    db.commit()
+        db.commit()
+    except psycopg2.Error as err:
+        print(err)
+    finally:
+        cursor.close()
 
 
 def get_downloaded_restaurants():
@@ -131,6 +172,9 @@ def get_downloaded_restaurants():
     Returns:
         pd.DataFrame: DataFrame containing downloaded restaurants.
     """
+    cursor = get_cursor()
+    if cursor is None:
+        return pd.DataFrame()
     try:
         cursor.execute("""
             SELECT r.restaurant_id,
@@ -152,6 +196,8 @@ def get_downloaded_restaurants():
     except psycopg2.Error as err:
         print(err)
         return pd.DataFrame()
+    finally:
+        cursor.close()
 
 
 def get_restaurant_by_id(restaurant_ids):
@@ -164,6 +210,9 @@ def get_restaurant_by_id(restaurant_ids):
     Returns:
         pd.DataFrame: DataFrame containing restaurants with the specified IDs.
     """
+    cursor = get_cursor()
+    if cursor is None:
+        return pd.DataFrame()
     try:
         query = """
             SELECT 
@@ -186,6 +235,8 @@ def get_restaurant_by_id(restaurant_ids):
     except psycopg2.Error as err:
         print(err)
         return pd.DataFrame()
+    finally:
+        cursor.close()
 
 
 def get_reviews_one_restaurant(id):
@@ -198,13 +249,19 @@ def get_reviews_one_restaurant(id):
     Returns:
         pd.DataFrame: DataFrame containing reviews for the specified restaurant.
     """
+    cursor = get_cursor()
+    if cursor is None:
+        return pd.DataFrame()
     try:
         cursor.execute(
             "SELECT * FROM REVIEWS WHERE restaurant_id = %s",
-            (id,)
+            (int(id),)
         )
         reviews = cursor.fetchall()
+        print(reviews)
         return pd.DataFrame([dict(review) for review in reviews])
     except psycopg2.Error as err:
         print(err)
         return pd.DataFrame()
+    finally:
+        cursor.close()

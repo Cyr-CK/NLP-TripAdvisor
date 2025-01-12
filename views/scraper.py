@@ -5,7 +5,67 @@ import random
 import streamlit as st
 from utils.tripAdvisorScraper import TripAdvisorSpecificRestaurantScraper
 from utils.db import save_reviews_to_db, get_not_downloaded_restaurants
+from utils.functions import extract_types_from_df
 
+
+# def scrape_all_restaurants(scraper, url):
+#     """Scrape all restaurants and display progress in Streamlit."""
+#     scraper.fetch_page(url)
+#     restaurants = []
+#     page = 1
+#     tries = 0
+#     while scraper.url is not None:
+#         time.sleep(random.uniform(1, 3))
+#         scraper.fetch_page(scraper.url)
+#         restaurant_cards = scraper.get_restaurant_cards()
+#         if not restaurant_cards:
+#             tries += 1
+#             if tries > 10:
+#                 raise Exception("No restaurant cards found - Aborting")
+#             else:
+#                 continue
+#         st.write(f"Scraping page {page}")
+#         tries = 0
+#         for card in restaurant_cards:
+#             restaurant = scraper.parse_restaurant(card)
+#             if restaurant:
+#                 restaurants.append(restaurant)
+#         scraper.url = scraper.get_next_url()
+#         page += 1
+#     return restaurants
+
+def scrape_restaurant_reviews(scraper, url, total_reviews_expected):
+    """Scrape all reviews for a specific restaurant and display progress in Streamlit."""
+    scraper.fetch_page(url)
+    reviews = []
+    page = 1
+    tries = 0
+    total_pages = total_reviews_expected // 15 + 5
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    
+    while scraper.url:
+        time.sleep(random.uniform(1, 3))
+        review_cards = scraper.get_review_cards()
+        if not review_cards:
+            tries += 1
+            if tries > 10:
+                raise Exception("No restaurant cards found - Aborting")
+            else:
+                continue
+        tries = 0
+        for card in review_cards:
+            reviews.append(scraper.parse_review(card))
+        scraper.url = scraper.get_next_url()
+        if scraper.url:
+            scraper.fetch_page(scraper.url)
+        page += 1
+        progress_bar.progress(min(page / total_pages, 1.0))
+        status_text.text(f"Scraping page {page} of {total_pages}")
+    
+    progress_bar.progress(1.0)  # Ensure the progress bar is complete at the end
+    status_text.text("Scraping complete")
+    return reviews
 
 def download_restaurant_data(filtered_df):
     """
@@ -16,11 +76,10 @@ def download_restaurant_data(filtered_df):
         with st.spinner(f"Downloading data for {row['restaurant_name']}..."):
             time.sleep(random.uniform(1, 3))
             restaurant_url = row["restaurant_url"]
+            restaurant_total_reviews = row["restaurant_total_reviews"]
             try:
                 scraper = TripAdvisorSpecificRestaurantScraper()
-                scraper.fetch_page(restaurant_url)
-                print(f"url: {scraper.full_url}")
-                corpus = scraper.get_all_reviews()
+                corpus = scrape_restaurant_reviews(scraper, restaurant_url, restaurant_total_reviews)
                 save_reviews_to_db(row['restaurant_id'], corpus)
             except Exception as e:
                 print(f"Error: {e}")
@@ -29,35 +88,10 @@ def download_restaurant_data(filtered_df):
         progress_bar.progress((i + 1) / len(filtered_df))
 
 
-def extract_types_from_df(df):
-    """
-    Extract unique restaurant types from the DataFrame.
-    """
-    rest_types = list()
-    try:
-        df["restaurant_type"] = df["restaurant_type"].apply(
-            lambda x: None if "€" in str(x) else x
-        )
-        temp_rest_types = df["restaurant_type"].dropna().unique()
-        for rest_type in temp_rest_types:
-            types = rest_type.split(",")
-            for type in types:
-                rest_types.append(type.strip())
-        rest_types = list(set(rest_types))
-        rest_types.sort()
-        return rest_types
-    except KeyError:
-        return rest_types
-    except Exception as e:
-        print(f"Error: {e}")
-        return rest_types
-
-
-def scraper_page():
+def scraper_page(df):
     """
     Streamlit page for scraping TripAdvisor restaurant data.
     """
-    df = get_not_downloaded_restaurants()
 
     st.title("TripAdvisor Restaurant Data Scraper")
     try:
