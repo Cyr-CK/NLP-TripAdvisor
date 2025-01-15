@@ -288,51 +288,50 @@ def generate_word2vec(df: pd.DataFrame, three_dimensional: bool = False):
     return restaurant_coords, restaurant_names
 
 
-def generate_spider_plot(emotions_par_resto, restaurant_id):
+def generate_spider_plot(emotions_df):
     """
     Générer un spider plot interactif pour un restaurant spécifique avec Plotly.
 
     Args:
-        emotions_par_resto (pd.DataFrame): Moyennes des émotions par restaurant.
-        restaurant_id (int): Identifiant du restaurant à analyser.
+        emotions_df (pd.DataFrame): Moyennes des émotions par restaurant.
 
     Returns:
         go.Figure: Figure Plotly contenant le spider plot.
     """
-    # Get restaurant name
-    restaurant_name = emotions_par_resto.loc[restaurant_id, "restaurant_name"]
-
-    # Get emotion columns (exclude restaurant_name column)
-    emotion_cols = [
-        col for col in emotions_par_resto.columns if col != "restaurant_name"
-    ]
-
-    # Get values for emotions only
-    values = (
-        emotions_par_resto.loc[restaurant_id, emotion_cols].values.flatten().tolist()
-    )
-    values += values[:1]
-
-    # Noms des émotions
-    emotions = emotions_par_resto.columns.tolist()
-    emotions += emotions[:1]
-
     # Création de la figure
     fig = go.Figure()
-    fig.add_trace(
-        go.Scatterpolar(
-            r=values,
-            theta=emotions,
-            fill="toself",
-            name=restaurant_name,
-        )
+
+    # Get values for emotions only
+    emotion_cols = [col for col in emotions_df.columns if col != "restaurant_name"]
+    emotions = emotion_cols + [emotion_cols[0]]
+
+    # standardize emotions by dividing by the maximum value
+    emotions_df[emotion_cols] = (
+        emotions_df[emotion_cols] / emotions_df[emotion_cols].max().max()
     )
+
+    # Add trace for each restaurant
+    for restaurant_id in emotions_df.index:
+        restaurant_name = emotions_df.loc[restaurant_id, "restaurant_name"]
+        values = emotions_df.loc[restaurant_id, emotion_cols].values.flatten().tolist()
+        values.append(values[0])
+
+        fig.add_trace(
+            go.Scatterpolar(
+                r=values,
+                theta=emotions,
+                fill="toself",
+                name=restaurant_name,
+                opacity=0.5,
+            )
+        )
+
     fig.update_layout(
         polar=dict(radialaxis=dict(visible=True, range=[0, 1])),
         showlegend=False,
-        title=restaurant_name,
-        width=600,
-        height=400,
+        title="Comparaison des émotions par restaurant",
+        width=800,
+        height=600,
     )
 
     return fig

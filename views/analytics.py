@@ -157,24 +157,10 @@ def analytics_page(df):
                 # Séparation des graphiques
                 st.divider()
                 st.write("")
-                st.write("")
 
                 # Analyses des émotions par restaurant
-                st.markdown("**Visualisation des émotions par restaurant :**")
-                n_restaurants = len(emotions_par_resto.index)
-                for i in range(0, n_restaurants, 3):
-                    cols = st.columns(3)
-                    for j in range(3):
-                        if i + j < n_restaurants:  # Check if restaurant exists
-                            restaurant_id = emotions_par_resto.index[i + j]
-                            with cols[j]:
-                                spider_plot = generate_spider_plot(
-                                    emotions_par_resto, restaurant_id
-                                )
-                                st.plotly_chart(spider_plot, use_container_width=True)
-
-                st.write("rassembler les graphs dans un seul graphique")
-                st.write("les restaurants se distingueront par leur couleur")
+                spider_plot = generate_spider_plot(emotions_par_resto)
+                st.plotly_chart(spider_plot, use_container_width=False)
 
     ################################################################
     # WORDCLOUD
