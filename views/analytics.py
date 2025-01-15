@@ -1,78 +1,116 @@
 """ Ce module contient la page "Analyse". """
 
 import streamlit as st
-from views import analysis_filtered
-from utils.db import get_downloaded_restaurants, get_restaurant_by_id
-from utils.functions import extract_types_from_df
-import pandas as pd
-
-import altair as alt
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 
-from time import time
+from views import analysis_filtered
+from utils.db import get_downloaded_restaurants, get_restaurant_by_id
 
 from utils.functions import (
-    generate_wordcloud, 
-    clean_text_df, 
-    generate_word2vec, 
+    extract_types_from_df,
+    generate_wordcloud,
+    clean_text_df,
+    generate_word2vec,
     generate_sentiments_analysis,
-    generate_word_frequencies_chart
-    )
+    generate_word_frequencies_chart,
+    generate_spider_plot,
+)
+
 
 # Fonction de filtrage des restaurants
 def restaurant_filters(df, tab_title):
+    """
+    Fonction pour filtrer les restaurants par type, prix et nom.
+    """
     col1, col2 = st.columns(2)
-    
+
     with col1:
         # Filtrer par type
         types = extract_types_from_df(df, True)
         # st.write(types)
-        types = ['Tous'] + list(types)
-        selected_type = st.selectbox('Sélectionnez le type de restaurant', types, key=f"restaurant_type_{tab_title}")
+        types = ["Tous"] + list(types)
+        selected_type = st.selectbox(
+            "Sélectionnez le type de restaurant",
+            types,
+            key=f"restaurant_type_{tab_title}",
+        )
 
     with col2:
         # Filtrer par prix
-        prices = ['Tous'] + df['restaurant_price'].unique().tolist()
-        selected_price = st.selectbox('Sélectionnez le prix du restaurant', prices, key=f"restaurant_price_{tab_title}")
+        prices = ["Tous"] + df["restaurant_price"].unique().tolist()
+        selected_price = st.selectbox(
+            "Sélectionnez le prix du restaurant",
+            prices,
+            key=f"restaurant_price_{tab_title}",
+        )
 
     # Filtrer par nom
-    if selected_type != 'Tous' and selected_price != 'Tous':
-        names = ['Tous'] + df[(df['restaurant_type'].str.contains(selected_type, case=False, na=False)) & (df['restaurant_price'] == selected_price)]['restaurant_name'].unique().tolist()
-    elif selected_type != 'Tous':
-        names = ['Tous'] + df[df['restaurant_type'].str.contains(selected_type, case=False, na=False)]['restaurant_name'].unique().tolist()
-    elif selected_price != 'Tous':
-        names = ['Tous'] + df[df['restaurant_price'] == selected_price]['restaurant_name'].unique().tolist()
+    if selected_type != "Tous" and selected_price != "Tous":
+        names = ["Tous"] + df[
+            (df["restaurant_type"].str.contains(selected_type, case=False, na=False))
+            & (df["restaurant_price"] == selected_price)
+        ]["restaurant_name"].unique().tolist()
+    elif selected_type != "Tous":
+        names = ["Tous"] + df[
+            df["restaurant_type"].str.contains(selected_type, case=False, na=False)
+        ]["restaurant_name"].unique().tolist()
+    elif selected_price != "Tous":
+        names = ["Tous"] + df[df["restaurant_price"] == selected_price][
+            "restaurant_name"
+        ].unique().tolist()
     else:
-        names = ['Tous'] + df['restaurant_name'].unique().tolist()
+        names = ["Tous"] + df["restaurant_name"].unique().tolist()
 
-    selected_names = st.multiselect('Sélectionnez les noms des restaurants', names, key=f"restaurant_names_{tab_title}")
+    selected_names = st.multiselect(
+        "Sélectionnez les noms des restaurants",
+        names,
+        key=f"restaurant_names_{tab_title}",
+    )
     return selected_names, names
 
-def get_filtered_restaurant(df,selected_names, names):
-    if len(selected_names) <= 0 and 'Tous' not in selected_names:
-        st.warning('Veuillez sélectionner au moins un restaurant.')
+
+def get_filtered_restaurant(df, selected_names, names):
+    """
+    Fonction pour filtrer les restaurants sélectionnés par l'utilisateur.
+    """
+    if len(selected_names) <= 0 and "Tous" not in selected_names:
+        st.warning("Veuillez sélectionner au moins un restaurant.")
         st.stop()
     else:
         filtered_df = df.copy()
-        if 'Tous' not in selected_names:
-            filtered_df = filtered_df[filtered_df['restaurant_name'].isin(selected_names)]
-        else: # 'Tous' in selected_names
-            names = [item for item in names if "Tous" not in item] # On supprime "Tous" des noms restants
-            filtered_df = filtered_df[filtered_df['restaurant_name'].isin(names)]
+        if "Tous" not in selected_names:
+            filtered_df = filtered_df[
+                filtered_df["restaurant_name"].isin(selected_names)
+            ]
+        else:  # 'Tous' in selected_names
+            names = [
+                item for item in names if "Tous" not in item
+            ]  # On supprime "Tous" des noms restants
+            filtered_df = filtered_df[filtered_df["restaurant_name"].isin(names)]
         if len(filtered_df) > 10:
-            st.warning('Vous avez sélectionné plus de dix restaurants, cela peut prendre du temps.')
+            st.warning(
+                "Vous avez sélectionné plus de dix restaurants, cela peut prendre du temps."
+            )
 
         # Obtenir les détails des restaurants par IDs
-        restaurant_ids = filtered_df['restaurant_id'].tolist()
+        restaurant_ids = filtered_df["restaurant_id"].tolist()
         filtered_df = get_restaurant_by_id(restaurant_ids)
         return filtered_df
 
 
 def analytics_page(df):
+    """Page d'analyse des restaurants."""
 
     # Création des onglets
-    home, sentiment_analysis, word_freq_analysis, simil_anaysis = st.tabs(["Faire une analyse", "Analyse de sentiments", "Wordcloud", "Analyse de similarité"])
+    home, sentiment_analysis, word_freq_analysis, simil_anaysis = st.tabs(
+        [
+            "Faire une analyse",
+            "Analyse de sentiments",
+            "Wordcloud",
+            "Analyse de similarité",
+        ]
+    )
     with home:
         st.title("Analytiques")
         st.markdown(
@@ -89,47 +127,73 @@ def analytics_page(df):
             """
         )
 
-################################################################
-# SENTIMENT ANALYSIS
-################################################################
+    ################################################################
+    # SENTIMENT ANALYSIS
+    ################################################################
 
     with sentiment_analysis:
         TAB_TITLE = "Analyse de sentiments"
         st.title(TAB_TITLE)
-        st.write("ℹ️ Vise à caractériser chaque restaurant à partir des sentiments véhiculés dans les avis des clients.")
+        st.write(
+            "ℹ️ Vise à caractériser chaque restaurant à partir des sentiments véhiculés dans les avis des clients."
+        )
 
         selected_names, names = restaurant_filters(df, TAB_TITLE)
         # Afficher la sélection filtrée
         if st.button("Démarrer l'analyse", key=f"start_analysis_{TAB_TITLE}"):
-            with st.spinner("Acquisition et pré-traitement des données sélectionnées... ⏳"):
+            with st.spinner(
+                "Acquisition et pré-traitement des données sélectionnées... ⏳"
+            ):
                 filtered_df = get_filtered_restaurant(df, selected_names, names)
                 filtered_df = clean_text_df(filtered_df)
                 # analysis_filtered.analytics_filtered_page(filtered_df)
 
             with st.spinner("Analyse des sentiments en cours... ⏳"):
-                emotions_par_resto = generate_sentiments_analysis(filtered_df)
-                st.write("Emotions moyennes par restaurant :")
-                st.write(emotions_par_resto)
-
-                st.write(
-                    "Les émotions sont présentées de manière moche pour l'instant mais cela va bouger"
+                emotions_par_resto, scatter_plot = generate_sentiments_analysis(
+                    filtered_df
                 )
-                st.pyplot(plt)
+                st.plotly_chart(scatter_plot, use_container_width=False)
 
-################################################################
-# WORDCLOUD
-################################################################
+                # Séparation des graphiques
+                st.divider()
+                st.write("")
+                st.write("")
+
+                # Analyses des émotions par restaurant
+                st.markdown("**Visualisation des émotions par restaurant :**")
+                n_restaurants = len(emotions_par_resto.index)
+                for i in range(0, n_restaurants, 3):
+                    cols = st.columns(3)
+                    for j in range(3):
+                        if i + j < n_restaurants:  # Check if restaurant exists
+                            restaurant_id = emotions_par_resto.index[i + j]
+                            with cols[j]:
+                                spider_plot = generate_spider_plot(
+                                    emotions_par_resto, restaurant_id
+                                )
+                                st.plotly_chart(spider_plot, use_container_width=True)
+
+                st.write("rassembler les graphs dans un seul graphique")
+                st.write("les restaurants se distingueront par leur couleur")
+
+    ################################################################
+    # WORDCLOUD
+    ################################################################
 
     with word_freq_analysis:
         TAB_TITLE = "Nuage de mots"
         st.title(TAB_TITLE)
-        st.write("ℹ️ Vise à représenter les mots les plus fréquents dans les avis des restaurants sélectionnés.")
+        st.write(
+            "ℹ️ Vise à représenter les mots les plus fréquents dans les avis des restaurants sélectionnés."
+        )
 
         selected_names, names = restaurant_filters(df, TAB_TITLE)
 
         # Afficher la sélection filtrée
         if st.button("Démarrer l'analyse", key=f"start_analysis_{TAB_TITLE}"):
-            with st.spinner("Acquisition et pré-traitement des données sélectionnées... ⏳"):
+            with st.spinner(
+                "Acquisition et pré-traitement des données sélectionnées... ⏳"
+            ):
                 filtered_df = get_filtered_restaurant(df, selected_names, names)
                 filtered_df = clean_text_df(filtered_df)
 
@@ -138,34 +202,37 @@ def analytics_page(df):
                 with col1:
                     wordcloud = generate_wordcloud(filtered_df)
                     plt.figure(figsize=(10, 5))
-                    plt.imshow(wordcloud, interpolation='bilinear')
-                    plt.axis('off')
+                    plt.imshow(wordcloud, interpolation="bilinear")
+                    plt.axis("off")
                     plt.show()
                     st.pyplot(plt)
-                        
 
                 with col2:
                     # Use the function to generate and display the chart
                     bar_chart = generate_word_frequencies_chart(filtered_df)
                     st.altair_chart(bar_chart, use_container_width=True)
 
-################################################################
-# WORD2VEC
-################################################################
+    ################################################################
+    # WORD2VEC
+    ################################################################
 
     with simil_anaysis:
         TAB_TITLE = "Analyse des similarités"
         st.title(TAB_TITLE)
-        st.markdown('ℹ️ Vise à représenter une "similarité" entre les restaurants à partir de la sémantique des avis des clients.  \n'+
-                 'ℹ️ Plus deux restaurants sont proches, plus ils peuvent être interprétés comme "similaires" sur des facteurs comme :  \n' +
-                 "ℹ️ la proximité géographique, de l'expérience utilisateur, du type de cuisine, du prix, etc.")
+        st.markdown(
+            'ℹ️ Vise à représenter une "similarité" entre les restaurants à partir de la sémantique des avis des clients.  \n'
+            + 'ℹ️ Plus deux restaurants sont proches, plus ils peuvent être interprétés comme "similaires" sur des facteurs comme :  \n'
+            + "ℹ️ la proximité géographique, de l'expérience utilisateur, du type de cuisine, du prix, etc."
+        )
 
         selected_names, names = restaurant_filters(df, TAB_TITLE)
 
         three_dim = st.checkbox("Analyse en 3D ? ", value=False)
         # Afficher la sélection filtrée
         if st.button("Démarrer l'analyse", key=f"start_analysis_{TAB_TITLE}"):
-            with st.spinner("Acquisition et pré-traitement des données sélectionnées... ⏳"):
+            with st.spinner(
+                "Acquisition et pré-traitement des données sélectionnées... ⏳"
+            ):
                 filtered_df = get_filtered_restaurant(df, selected_names, names)
                 if three_dim and len(filtered_df["restaurant_id"].unique()) < 3:
                     st.warning("Veuillez sélectionner au moins trois restaurants.")
@@ -176,9 +243,9 @@ def analytics_page(df):
                 filtered_df = clean_text_df(filtered_df)
 
             with st.spinner("Analyse des similarités en cours... ⏳"):
-                # start = time()
-                restaurant_coords, restaurant_names = generate_word2vec(filtered_df, three_dim)
-                # end = time()
+                restaurant_coords, restaurant_names = generate_word2vec(
+                    filtered_df, three_dim
+                )
 
                 # Create a new figure for the scatter plot
                 fig = go.Figure()
@@ -201,9 +268,10 @@ def analytics_page(df):
                     # Mise à jour du layout
                     fig.update_layout(
                         title="Représentation des restaurants basée sur les avis (ACP)",
-                        scene = dict(xaxis_title="Dimension 1",
-                                     yaxis_title="Dimension 2",
-                                     zaxis_title="Dimension 3"
+                        scene=dict(
+                            xaxis_title="Dimension 1",
+                            yaxis_title="Dimension 2",
+                            zaxis_title="Dimension 3",
                         ),
                         width=800,
                         height=600,
