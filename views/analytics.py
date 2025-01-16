@@ -70,7 +70,7 @@ def restaurant_filters(df, tab_title):
     return selected_names, names
 
 
-def get_filtered_restaurant(df, selected_names, names):
+def get_filtered_restaurant(df, selected_names, names, relevance):
     """
     Fonction pour filtrer les restaurants sélectionnés par l'utilisateur.
     """
@@ -96,6 +96,9 @@ def get_filtered_restaurant(df, selected_names, names):
         # Obtenir les détails des restaurants par IDs
         restaurant_ids = filtered_df["restaurant_id"].tolist()
         filtered_df = get_restaurant_by_id(restaurant_ids)
+        if relevance:
+            avg = filtered_df["contributions"].median()
+            filtered_df = filtered_df[filtered_df["contributions"] >= avg]
         return filtered_df
 
 
@@ -139,12 +142,17 @@ def analytics_page(df):
         )
 
         selected_names, names = restaurant_filters(df, TAB_TITLE)
+
+        relevance = st.checkbox("Analyse des avis les plus pertinents ?", value=False,
+                                help="Seuls les avis émis par des internautes ayant un volume de contribution supérieur à la médiane seront pris en compte lors de l'analyse.",
+                                key=f"relevant_only_{TAB_TITLE}")
+
         # Afficher la sélection filtrée
         if st.button("Démarrer l'analyse", key=f"start_analysis_{TAB_TITLE}"):
             with st.spinner(
                 "Acquisition et pré-traitement des données sélectionnées... ⏳"
             ):
-                filtered_df = get_filtered_restaurant(df, selected_names, names)
+                filtered_df = get_filtered_restaurant(df, selected_names, names, relevance)
                 filtered_df = clean_text_df(filtered_df)
                 # analysis_filtered.analytics_filtered_page(filtered_df)
 
@@ -175,12 +183,16 @@ def analytics_page(df):
 
         selected_names, names = restaurant_filters(df, TAB_TITLE)
 
+        relevance = st.checkbox("Analyse des avis les plus pertinents ?", value=False,
+                                help="Seuls les avis émis par des internautes ayant un volume de contribution supérieur à la médiane seront pris en compte lors de l'analyse.",
+                                key=f"relevant_only_{TAB_TITLE}")
+
         # Afficher la sélection filtrée
         if st.button("Démarrer l'analyse", key=f"start_analysis_{TAB_TITLE}"):
             with st.spinner(
                 "Acquisition et pré-traitement des données sélectionnées... ⏳"
             ):
-                filtered_df = get_filtered_restaurant(df, selected_names, names)
+                filtered_df = get_filtered_restaurant(df, selected_names, names, relevance)
                 filtered_df = clean_text_df(filtered_df)
 
             with st.spinner("Création du nuage de mots en cours... ⏳"):
@@ -213,13 +225,20 @@ def analytics_page(df):
 
         selected_names, names = restaurant_filters(df, TAB_TITLE)
 
-        three_dim = st.checkbox("Analyse en 3D ? ", value=False)
+        col1, col2 = st.columns(2)
+        with col1:
+            relevance = st.checkbox("Analyse des avis les plus pertinents ?", value=False,
+                                    help="Seuls les avis émis par des internautes ayant un volume de contribution supérieur à la médiane seront pris en compte lors de l'analyse.",
+                                    key=f"relevant_only_{TAB_TITLE}")
+        with col2:
+            three_dim = st.checkbox("Analyse en 3D ? ", value=False)
+            
         # Afficher la sélection filtrée
         if st.button("Démarrer l'analyse", key=f"start_analysis_{TAB_TITLE}"):
             with st.spinner(
                 "Acquisition et pré-traitement des données sélectionnées... ⏳"
             ):
-                filtered_df = get_filtered_restaurant(df, selected_names, names)
+                filtered_df = get_filtered_restaurant(df, selected_names, names, relevance)
                 if three_dim and len(filtered_df["restaurant_id"].unique()) < 3:
                     st.warning("Veuillez sélectionner au moins trois restaurants.")
                     st.stop()
@@ -288,5 +307,3 @@ def analytics_page(df):
 
                 # Affichage du graphique dans Streamlit
                 st.plotly_chart(fig)
-                # st.write(f"Temps de traitement : {(end-start)/60} min. ({end - start} sec.)")
-                # st.write(f"{(end-start)/len(filtered_df['restaurant_id'].unique())} sec/restaurant en moyenne.")
