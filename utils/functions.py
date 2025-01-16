@@ -211,7 +211,7 @@ def generate_word2vec(df: pd.DataFrame, three_dimensional: bool = False):
 
     Args:
         df (pd.DataFrame): The input dataframe containing 'cleaned_text' column.
-        three_dimensional (bool): Whether the analysis should be done in 3D
+        three_dimensional (bool): Whether the analysis should be done in 3D.
 
     Returns:
         restaurant_coords (np.array): PCA-projected coordinates of the restaurants.
@@ -250,7 +250,7 @@ def generate_word2vec(df: pd.DataFrame, three_dimensional: bool = False):
     # Calculer les vecteurs moyens pour chaque restaurant
     df_reviews["avg_vector"] = df_reviews["tokens"].apply(get_avg_vector)
 
-    df_reviews["contributions"] = df_reviews["contributions"].replace(0,1)
+    df_reviews["contributions"] = df_reviews["contributions"].fillna(1)
 
 
     def weighted_avg_vector(vectors, weights):
@@ -260,7 +260,7 @@ def generate_word2vec(df: pd.DataFrame, three_dimensional: bool = False):
     weighted_reviews = df_reviews.groupby("restaurant_id").agg(
         weighted_avg_vector=pd.NamedAgg(
             column="avg_vector",
-            aggfunc=lambda x: weighted_avg_vector(x, df.loc[x.index, 'rating'])
+            aggfunc=lambda x: weighted_avg_vector(x, df_reviews.loc[x.index, 'contributions'])
         )
     )
 
@@ -282,11 +282,16 @@ def generate_word2vec(df: pd.DataFrame, three_dimensional: bool = False):
     # restaurant_vectors.reset_index(inplace=True)
     # restaurant_names = restaurant_vectors["restaurant_name"]
 
-    weighted_reviews["restaurant_name"] = df.drop_duplicates(subset="restaurant_id").set_index("restaurant_id")["restaurant_name"]
+    weighted_reviews["restaurant_name"] = df_reviews.drop_duplicates(subset="restaurant_id").set_index("restaurant_id")["restaurant_name"]
+    weighted_reviews["restaurant_type"] = df_reviews.drop_duplicates(subset="restaurant_id").set_index("restaurant_id")["restaurant_type"]
+    weighted_reviews["restaurant_price"] = df_reviews.drop_duplicates(subset="restaurant_id").set_index("restaurant_id")["restaurant_price"]
     weighted_reviews.reset_index(inplace=True)
-    restaurant_names = weighted_reviews["restaurant_name"]
+    # restaurant_info_supp = pd.DataFrame()
+    # restaurant_info_supp["restaurant_name"] = weighted_reviews["restaurant_name"]
+    # restaurant_info_supp["restaurant_type"] = weighted_reviews["restaurant_type"]
+    # restaurant_info_supp["restaurant_price"] = weighted_reviews["restaurant_price"]
 
-    # restaurant_names = merged_reviews["restaurant_name"]
+    restaurant_names = weighted_reviews["restaurant_name"]
     if three_dimensional:
         ncp = 3
     else:

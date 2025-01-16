@@ -147,6 +147,7 @@ def analytics_page(df):
                                 help="Seuls les avis émis par des internautes ayant un volume de contribution supérieur à la médiane seront pris en compte lors de l'analyse.",
                                 key=f"relevant_only_{TAB_TITLE}")
 
+        st.divider()
         # Afficher la sélection filtrée
         if st.button("Démarrer l'analyse", key=f"start_analysis_{TAB_TITLE}"):
             with st.spinner(
@@ -187,6 +188,7 @@ def analytics_page(df):
                                 help="Seuls les avis émis par des internautes ayant un volume de contribution supérieur à la médiane seront pris en compte lors de l'analyse.",
                                 key=f"relevant_only_{TAB_TITLE}")
 
+        st.divider()
         # Afficher la sélection filtrée
         if st.button("Démarrer l'analyse", key=f"start_analysis_{TAB_TITLE}"):
             with st.spinner(
@@ -225,6 +227,7 @@ def analytics_page(df):
 
         selected_names, names = restaurant_filters(df, TAB_TITLE)
 
+        # col1, col2, col3 = st.columns(3)
         col1, col2 = st.columns(2)
         with col1:
             relevance = st.checkbox("Analyse des avis les plus pertinents ?", value=False,
@@ -232,7 +235,10 @@ def analytics_page(df):
                                     key=f"relevant_only_{TAB_TITLE}")
         with col2:
             three_dim = st.checkbox("Analyse en 3D ? ", value=False)
+        # with col3:
+        #     analysis_type = st.selectbox("Où mettre l'accent pour l'analyse ?", options=["Type de cuisine", "Fourchette de prix"])
             
+        st.divider()
         # Afficher la sélection filtrée
         if st.button("Démarrer l'analyse", key=f"start_analysis_{TAB_TITLE}"):
             with st.spinner(
@@ -251,7 +257,11 @@ def analytics_page(df):
                 restaurant_coords, restaurant_names = generate_word2vec(
                     filtered_df, three_dim
                 )
-
+                # if analysis_type == "Type de cuisine":
+                #     classes = restaurant_info_supp["restaurant_type"]
+                # else: # analysis_type == "Fourchette de prix"
+                #     classes = restaurant_info_supp["restaurant_price"]
+                
                 # Create a new figure for the scatter plot
                 fig = go.Figure()
 
@@ -263,7 +273,10 @@ def analytics_page(df):
                             y=restaurant_coords[:, 1],
                             z=restaurant_coords[:, 2],
                             mode="markers+text",
-                            marker=dict(size=10, color="blue"),
+                            marker=dict(
+                                size=10, 
+                                color="blue"
+                                ),
                             text=restaurant_names,
                             textposition="top center",
                             hoverinfo="text",
@@ -289,7 +302,10 @@ def analytics_page(df):
                             x=restaurant_coords[:, 0],
                             y=restaurant_coords[:, 1],
                             mode="markers+text",
-                            marker=dict(size=10, color="blue"),
+                            marker=dict(
+                                size=10, 
+                                color="blue"
+                                ),
                             text=restaurant_names,
                             textposition="top center",
                             hoverinfo="text",

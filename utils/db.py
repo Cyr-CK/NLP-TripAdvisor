@@ -220,6 +220,7 @@ def get_restaurant_by_id(restaurant_ids):
                 r.restaurant_name,
                 r.restaurant_avg_review,
                 r.restaurant_type,
+                r.restaurant_price,
                 l.latitude,
                 l.longitude,
                 r2.rating,
