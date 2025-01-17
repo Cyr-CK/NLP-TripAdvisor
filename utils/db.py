@@ -111,23 +111,34 @@ def get_restaurant_by_type(restaurant_type):
         cursor.close()
 
 
-def get_not_downloaded_restaurants():
+def get_reviews_info_by_restaurant(restaurant_id):
     """
-    Fetch restaurants that have not been downloaded yet.
+    Fetch summary of reviews for a specific restaurant by its ID.
+
+    Args:
+        restaurant_id (int): The ID of the restaurant.
 
     Returns:
-        pd.DataFrame: DataFrame containing restaurants not downloaded.
+        pd.DataFrame: DataFrame containing summary of reviews for the specified restaurant.
     """
     cursor = get_cursor()
     if cursor is None:
         return pd.DataFrame()
     try:
-        cursor.execute("""
-            SELECT * FROM RESTAURANTS 
-            WHERE restaurant_id NOT IN (SELECT restaurant_id FROM REVIEWS)
-        """)
-        restaurants = cursor.fetchall()
-        return pd.DataFrame([dict(restaurant) for restaurant in restaurants])
+        cursor.execute(
+            """
+            SELECT 
+                COUNT(*) AS review_count, 
+                AVG(rating) AS average_rating, 
+                MAX(date) AS last_comment_date, 
+                MIN(date) AS first_comment_date 
+            FROM reviews 
+            WHERE restaurant_id = %s
+            """,
+            (int(restaurant_id),)
+        )
+        review_summary = cursor.fetchall()
+        return pd.DataFrame([dict(summary) for summary in review_summary])
     except psycopg2.Error as err:
         print(err)
         return pd.DataFrame()
@@ -165,6 +176,115 @@ def save_reviews_to_db(restaurant_id, reviews):
         cursor.close()
 
 
+def save_restaurant_to_db(restaurant_data):
+    """
+    Save restaurant data to the database.
+
+    Args:
+        restaurant_data (dict): Dictionary containing restaurant data.
+    """
+    cursor = get_cursor()
+    if cursor is None:
+        return
+
+    try:
+        # Clean and format data
+        restaurant_name = restaurant_data["restaurant_name"].replace("'", "''")
+        restaurant_avg_review = float(restaurant_data["restaurant_avg_review"])
+        restaurant_price = restaurant_data["restaurant_price"].replace("'", "''")
+        restaurant_reviews = int(restaurant_data["restaurant_reviews"])
+        restaurant_type_resto = restaurant_data["restaurant_type_resto"].replace("'", "''")
+        restaurant_url = restaurant_data["restaurant_url"]
+
+        address = restaurant_data["restauranta_address"]["address"].replace("'", "''")
+        latitude = float(restaurant_data["restauranta_address"]["latitude"])
+        longitude = float(restaurant_data["restauranta_address"]["longitude"])
+        zip_code = restaurant_data["restauranta_address"]["zip_code"].replace("'", "''")
+        country = restaurant_data["restauranta_address"]["country"].replace("'", "''")
+        ville = restaurant_data["restauranta_address"]["ville"].replace("'", "''")
+
+        # Insert restaurant data
+        cursor.execute(
+            """
+            INSERT INTO restaurants (restaurant_name, restaurant_avg_review, restaurant_price, restaurant_total_reviews, restaurant_type, restaurant_url)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING restaurant_id
+            """,
+            (restaurant_name, restaurant_avg_review, restaurant_price, restaurant_reviews, restaurant_type_resto, restaurant_url)
+        )
+        restaurant_id = cursor.fetchone()[0]
+
+        # Insert location data
+        cursor.execute(
+            """
+            INSERT INTO locations (restaurant_id, address, latitude, longitude, code_postal, ville, country)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """,
+            (restaurant_id, address, latitude, longitude, zip_code, ville, country)
+        )
+
+        db.commit()
+        return pd.DataFrame([{
+            "restaurant_id": restaurant_id,
+            "restaurant_name": restaurant_name,
+            "restaurant_avg_review": restaurant_avg_review,
+            "restaurant_price": restaurant_price,
+            "restaurant_total_reviews": restaurant_reviews,
+            "restaurant_type": restaurant_type_resto,
+            "restaurant_url": restaurant_url
+        }])
+    except psycopg2.Error as err:
+        print(err)
+    finally:
+        cursor.close()
+
+def delete_reviews_by_restaurant_id(restaurant_id):
+    """
+    Delete all reviews for a specific restaurant.
+
+    Args:
+        restaurant_id (int): The ID of the restaurant.
+    """
+    cursor = get_cursor()
+    if cursor is None:
+        return
+    try:
+        cursor.execute(
+            "DELETE FROM reviews WHERE restaurant_id = %s",
+            (restaurant_id,)
+        )
+        db.commit()
+    except psycopg2.Error as err:
+        print(err)
+    finally:
+        cursor.close()
+        
+        
+def restaurant_exists(restaurant_url):
+    """
+    Check if a restaurant exists in the database by its URL.
+
+    Args:
+        restaurant_url (str): The URL of the restaurant.
+
+    Returns:
+        bool: True if the restaurant exists, False otherwise.
+    """
+    cursor = get_cursor()
+    if cursor is None:
+        return False
+    try:
+        cursor.execute(
+            "SELECT 1 FROM restaurants WHERE restaurant_url = %s",
+            (restaurant_url,)
+        )
+        return cursor.fetchone() is not None
+    except psycopg2.Error as err:
+        print(err)
+        return False
+    finally:
+        cursor.close()
+
 def get_downloaded_restaurants():
     """
     Fetch restaurants that have been downloaded.
@@ -184,9 +304,12 @@ def get_downloaded_restaurants():
                 r.restaurant_type, 
                 r.restaurant_total_reviews,
                 r.restaurant_url,
+                r.restaurant_about,
                 l.address,
                 l.latitude, 
-                l.longitude 
+                l.longitude,
+                l.country,
+                l.ville
             FROM restaurants r
             JOIN locations l ON r.restaurant_id = l.restaurant_id
             WHERE r.restaurant_id IN (SELECT restaurant_id FROM REVIEWS)
