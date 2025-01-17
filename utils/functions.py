@@ -1,4 +1,5 @@
 import re
+import os
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -12,6 +13,7 @@ from nltk.tokenize import word_tokenize
 from gensim.models import Word2Vec
 from collections import Counter
 import altair as alt
+import requests
 from nrclex import NRCLex  # Add this import
 
 nltk.download("punkt")
@@ -21,6 +23,25 @@ nltk.download("stopwords")
 from nltk.corpus import stopwords
 
 
+def get_keys():
+    mistral_key = os.getenv('MISTRAL_KEY')
+    google_maps_api_key = os.getenv('GOOGLE_MAPS_API_KEY')
+    
+    return {
+        'mistral_key': mistral_key,
+        'google_maps_api_key': google_maps_api_key
+    }
+    
+    
+words_not_relevant = [
+    "a", "à", "au", "aux", "avec", "ce", "ces", "dans",
+    "très", "trop", "peu", "beaucoup", "restaurant", "plu",
+    "peu", "beaucoup", "plus", "c'est", "cuisine",
+    "très", "sans", "plus", "bien", "trop", "si", "cette"
+    "a", "à", "au", "aux", "avec", "ce", "ces", "dans", 
+    "de", "des"
+]
+    
 def clean_text(text: str) -> str:
     """
     Clean the input text by removing newlines, carriage returns, and tabs.
@@ -129,6 +150,7 @@ def clean_text_df(df: pd.DataFrame, root_type: str = "lemmatization") -> pd.Data
         pd.DataFrame: The dataframe with an additional 'cleaned_text' column.
     """
     stop_words = set(stopwords.words("french"))
+    stop_words.update(words_not_relevant)
     stemmer = SnowballStemmer("french")
     lemmatizer = nltk.WordNetLemmatizer()
 
@@ -136,11 +158,11 @@ def clean_text_df(df: pd.DataFrame, root_type: str = "lemmatization") -> pd.Data
         tokens = nltk.word_tokenize(text, language="french")
         if root_type == "stemming":
             tokens = [
-                stemmer.stem(word) for word in tokens if word.lower() not in stop_words
+                stemmer.stem(word.lower()).lower() for word in tokens if word.lower() not in stop_words
             ]
         else:
             tokens = [
-                lemmatizer.lemmatize(word)
+                lemmatizer.lemmatize(word.lower()).lower()
                 for word in tokens
                 if word.lower() not in stop_words
             ]
@@ -151,7 +173,7 @@ def clean_text_df(df: pd.DataFrame, root_type: str = "lemmatization") -> pd.Data
     return df
 
 
-def generate_wordcloud(df: pd.DataFrame) -> WordCloud:
+def generate_wordcloud(df: pd.DataFrame, ignored_words=list()) -> WordCloud:
     """
     Generate a word cloud from the cleaned text in the dataframe.
 
@@ -165,8 +187,17 @@ def generate_wordcloud(df: pd.DataFrame) -> WordCloud:
         raise ValueError(
             "Dataframe must contain 'restaurant_name' and 'cleaned_text' columns."
         )
-
+    
+    # Join the filtered tokens back into a string
     text = " ".join(review for review in df["cleaned_text"])
+    text_separed = text.lower().split(" ")
+    print(len(text_separed))
+    text_separed = [word for word in text_separed if word not in words_not_relevant]
+    print(len(text_separed))
+    text_separed = [word for word in text_separed if word not in ignored_words]
+    print(len(text_separed))
+    text = " ".join(text_separed)
+    # text = " ".join([word.lower() for word in text.split() if word.lower() not in words_not_relevant or word.lower() not in ignored_words])
     wordcloud = WordCloud(width=800, height=400, background_color="white").generate(
         text
     )
@@ -174,35 +205,49 @@ def generate_wordcloud(df: pd.DataFrame) -> WordCloud:
     return wordcloud
 
 
-def generate_word_frequencies_chart(df: pd.DataFrame) -> alt.Chart:
+def generate_word_frequencies_chart(df: pd.DataFrame, ignored_words=list(), color: str = "blue") -> alt.Chart:
     """
     Generate a bar chart of the 20 most frequent words from the cleaned text in the dataframe.
 
     Args:
         df (pd.DataFrame): The input dataframe containing 'cleaned_text' column.
+        ignored_words (list): List of words to ignore in the frequency count.
+        color (str): Color of the bars in the chart.
 
     Returns:
         alt.Chart: The generated bar chart of word frequencies.
     """
     # Clean special characters and separations
-    df["cleaned_text"] = df["cleaned_text"].str.replace(r"[^\w\s]", "", regex=True)
+    df.loc[:, "cleaned_text"] = df["cleaned_text"].str.lower().str.replace(r"[^\w\s]", "", regex=True)
+
+    # Join the filtered tokens back into a string
+    text = " ".join(review for review in df["cleaned_text"])
+    text_separated = text.lower().split(" ")
+    text_separated = [word for word in text_separated if word not in words_not_relevant]
+    text_separated = [word for word in text_separated if word not in ignored_words]
+    text = " ".join(text_separated)
 
     # Generate word frequencies
-    word_freq = Counter(" ".join(df["cleaned_text"]).split())
+    word_freq = Counter(text.split())
     word_freq_df = pd.DataFrame(word_freq.items(), columns=["word", "frequency"])
 
+    # Filter out words that are not relevant
+    word_freq_df = word_freq_df[~word_freq_df["word"].isin(words_not_relevant)]
+    word_freq_df = word_freq_df[~word_freq_df["word"].isin(ignored_words)]
+    
     # Get the 20 most frequent words
-    word_freq_df = word_freq_df.nlargest(15, "frequency")
-
+    total_words = word_freq_df['word'].count()
+    word_freq_df = word_freq_df.nlargest(10, "frequency")
+    
     # Create bar chart
     bar_chart = (
         alt.Chart(word_freq_df)
-        .mark_bar()
+        .mark_bar(color=color)
         .encode(x="frequency:Q", y=alt.Y("word:N", sort="-x"))
         .properties(width=400, height=400)
     )
 
-    return bar_chart
+    return bar_chart, total_words
 
 
 def generate_word2vec(df: pd.DataFrame, three_dimensional: bool = False):
@@ -423,118 +468,40 @@ def generate_sentiments_analysis(df: pd.DataFrame):
 
     return emotions_par_resto, fig
 
-    # def get_selected_restaurants(df):
-
-    #     # Choice of the restaurant from which we want to analyze the reviews.
-    #     st.write("Choisissez les restaurants à analyser :")
-    #     select_all2 = st.checkbox("Selectionner Tous")
-    #     if select_all2:
-    #         restaurant_name2 = df["restaurant_name"].to_list()
-    #     else:
-    #         restaurant_name2 = st.multiselect(
-    #             "Restaurants choisis:",
-    #             df["restaurant_name"].to_list(),
-    #         )
-    #     return restaurant_name2
-
-    # def get_reviews(restaurant_ids):
-    #     avis = pd.DataFrame()
-    #         filtered_df = get_reviews_one_restaurant(id)
-    #         temp = filtered_df[["restaurant_id", "review_text", "rating"]]
-    #         if avis.empty:
-    #             avis = temp
-    #         else:
-    #             avis = pd.concat([avis, temp], axis=0)
-    #     return avis
-
-    # def calculate_sentiment(avis):
-    #     avis["sentiment"] = avis["review_text"].apply(
-    #         lambda x: TextBlob(x).sentiment.polarity
-    #     return avis
-
-    # def plot_sentiment_vs_rating(data):
-    #     plt.figure(figsize=(10, 6))
-    #     plt.scatter(data["note_moyenne"], data["sentiment_moyen"])
-    #     for _, row in data.iterrows():
-    #             row["note_moyenne"],
-    #             row["sentiment_moyen"],
-    #             row["restaurant_name"],
-    #             fontsize=9,
-    #         )
-    #     plt.xlabel("Note Moyenne")
-    #     plt.ylabel("Sentiment Moyen")
-    #     plt.title("Sentiment Moyen vs Note Moyenne par Restaurant")
-    #     st.pyplot(plt)
-
-    # def extract_emotions(text):
-    #     """
-    #     Fonction qui extrait les scores d'émotions d'un texte.
-    #     Pour chaque émotion, on calcule le score en fonction du nombre d'occurrences.
-    #     """
-    #     # Normaliser par le nombre total d'émotions détectées (optionnel)
-    #     total = sum(emotion_scores.values())
-    #     if total > 0:
-    #         return {
-    #             emotion: score / total
-    #             for emotion, score in emotion_scores.items()
-    #         }
-    #     return emotion_scores
-
-    # def analyze_sentiments(df):
-    #     restaurant_name2 = get_selected_restaurants(df)
-
-    #     # Button to launch the analysis
-    #     if st.button("Analyse de sentiments", key="analysis_button2"):
-
-    #         restaurant_ids = df[df["restaurant_name"].isin(restaurant_name2)][
-    #             "restaurant_id"
-    #         ]
-    #         avis = get_reviews(restaurant_ids)
-
-    #         # Ajout d'une colonne "sentiment" avec la polarité des avis
-    #         avis = calculate_sentiment(avis)
-
-    #         # avis par restaurant
-    #         avis_par_resto = avis.groupby("restaurant_id")["sentiment"].mean()
-    #         note_moyenne = avis.groupby("restaurant_id")["rating"].mean()
-
-    #         avis_par_resto = pd.DataFrame(avis_par_resto)
-    #         note_moyenne = pd.DataFrame(note_moyenne)
-
-    #         notes_moyennes = pd.merge(avis_par_resto, note_moyenne, on="restaurant_id")
-    #         notes_moyennes = notes_moyennes.rename(
-    #             columns={"sentiment": "sentiment_moyen", "rating": "note_moyenne"}
-    #         )
-
-    #         # merge with restaurants
-    #         data = pd.merge(df, notes_moyennes, on="restaurant_id")
-
-    #         # Dispertion graph
-    #         plot_sentiment_vs_rating(data)
-
-    #         # Appliquer la fonction sur la colonne "review_text" et créer un DataFrame d'émotions
-    #         emotion_data = avis["review_text"].apply(extract_emotions)
-    #         emotion_df = pd.DataFrame(emotion_data.tolist())
-
-    #         # Reset index to be able to concatenate
-    #         avis.reset_index(drop=True, inplace=True)
-    #         emotion_df.reset_index(drop=True, inplace=True)
-
-    #         # Ajouter les scores d'émotions au DataFrame "avis"
-    #         avis = pd.concat([avis, emotion_df], axis=1)
-
-    #         # Calculer les moyennes des émotions pour chaque restaurant
-    #         emotions_par_resto = avis.groupby("restaurant_id")[
-    #             emotion_df.columns
-    #         ].mean()
-    #         st.write("Emotions moyennes par restaurant :")
-    #         st.write(emotions_par_resto)
-
-    #         st.write(
-    #             "Les emotions sont présentées de manière moche pour l'instant mais cela va bouger"
-    #         )
-
-    # return ("OK", "You'll see here your sentiment analysis result")
-
-    # Replace the placeholder with the function call
-    # analyze_sentiments(df)
+def get_coordinates(address, api_key):
+    base_url = "https://maps.googleapis.com/maps/api/geocode/json"
+    params = {
+        "address": address,
+        "key": api_key
+    }
+    response = requests.get(base_url, params=params)
+    if response.status_code == 200:
+        data = response.json()
+        if data['status'] == 'OK':
+            formatted_address = data['results'][0]['formatted_address']
+            address_components = data['results'][0]['address_components']
+            location = data['results'][0]['geometry']['location']
+            latitud = location['lat']
+            longitud = location['lng']
+            zip_code = next(
+                (component['long_name'] for component in address_components 
+                 if "postal_code" in component['types']), None)
+            country = next(
+                (component['long_name'] for component in address_components 
+                 if "country" in component['types']), None)
+            ville = next(
+                (component['long_name'] for component in address_components 
+                 if "locality" in component['types']), None)
+            return {
+                "address": formatted_address,
+                "latitude": latitud,
+                "longitude": longitud,
+                "zip_code": zip_code,
+                "country": country,
+                "ville": ville
+            }
+        else:
+            return None
+    else:
+        return None
+            

@@ -1,17 +1,70 @@
-# NLP-TripAdvisor
+# Scraper NLP Tripadvisor
 
-## ROADMAP : 
+This project demonstrates the use of NLP practices by deploying analysis and models. It focuses on scraping reviews from Tripadvisor based on user feedback.
 
-Scrapping : BeautifulSoup
+## Architecture
 
-Architecture bdd : SQLite
+A scraper (BeautifulSoup) is used to gather restaurant data from all review pages. These reviews are saved into a PostgreSQL database, which is accessed by a Python backend. The data is then displayed on a Streamlit frontend for analysis. Additionally, an LLM from Mistral AI is used to summarize each restaurant's positive and negative points based on the comments.
 
-Modèle NLP : restaurants proches / résumé d'avis / mots qui reviennent
-Analyse comparative des restaurants : notes, type de cuisine
+![Architecture Diagram](assets/img/architecture.png)
 
-Analyses géographiques : openstreetmap
-Carte interactive
+## DataBase
+The database follows a star schema, dividing locations, reviews, and restaurant information into separate tables. For improvement, consider adding another table for users instead of saving user information in the reviews table.
 
-Appli web : Dash ?
+![UML](assets/img/nlp_sql_uml.png)
 
-Docker
+## How to Set Up
+
+## API Keys Setup
+
+Before starting, you need API keys from different services. Follow the steps below to obtain and configure the necessary keys.
+
+Ensure your `docker-compose` file includes the following environment variables:
+```yaml
+environment:
+  - MISTRAL_API_KEY=${MISTRAL_API_KEY}
+  - GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}
+```
+
+### Mistral AI
+
+1. **Create an account:**
+    If you don't have an account, register at [Mistral AI](https://auth.mistral.ai/ui/registration).
+
+2. **Add billing information:**
+    Go to [Mistral AI Billing](https://console.mistral.ai/billing/) and follow the instructions to add your billing information and credit balance.
+
+3. **Generate an API key:**
+    Visit [Mistral AI API Keys](https://console.mistral.ai/user/api-keys/) and click "Generate a new key". Copy the key and add it to your environment variables. If you are using a Unix-based OS, you can add it to your local environment variables with the name `MISTRAL_API_KEY`, and Docker will automatically use it. Alternatively for Windows users, you can directly replace `${MISTRAL_API_KEY}` in the `docker-compose` file.
+
+### Google Maps
+
+1. **Get an API key:**
+    Follow the instructions at [Google Maps API](https://developers.google.com/maps/documentation/javascript/get-api-key) to obtain your API key.
+
+2. **Configure the API key:**
+    Add the key to your environment variables. If you are using a Unix-based OS, you can add it to your local environment variables with the name `GOOGLE_MAPS_API_KEY`, and Docker will automatically use it. Alternatively, for Windows users, you can directly replace `${GOOGLE_MAPS_API_KEY}` in the `docker-compose` file.
+
+1. **Clone the repository:**
+    ```bash
+    git clone https://github.com/yourusername/NLP-TripAdvisor.git
+    cd NLP-TripAdvisor
+    ```
+    Ensure you have Docker installed and run:
+
+2. **Docker setup:**
+    ```bash
+    docker-compose up --build -d
+    ```
+
+3. **Access the web application:**
+    The application will be available at `http://localhost:8052`
+
+### Local set up
+Install your favorite
+
+## Collaborators
+
+- **[@maxenceLIOGIER](https://github.com/maxenceLIOGIER)**
+- **[@Cyr-CK](https://github.com/Cyr-CK)**
+- **[@halcolo](https://github.com/halcolo)**

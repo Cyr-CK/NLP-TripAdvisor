@@ -5,7 +5,8 @@ CREATE TABLE IF NOT EXISTS restaurants (
     restaurant_avg_review FLOAT,
     restaurant_total_reviews INT,
     restaurant_price VARCHAR(50),
-    restaurant_type VARCHAR(255)
+    restaurant_type VARCHAR(255),
+    restaurant_about TEXT
 );
 
 CREATE TABLE IF NOT EXISTS locations (
@@ -16,6 +17,7 @@ CREATE TABLE IF NOT EXISTS locations (
     code_postal TEXT,
     latitude REAL,
     longitude REAL,
+    country VARCHAR(255),
     FOREIGN KEY (restaurant_id) REFERENCES restaurants(restaurant_id)
 );
 

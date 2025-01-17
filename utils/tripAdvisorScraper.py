@@ -4,9 +4,14 @@ import requests
 import random
 import string
 import locale
+import re
 from datetime import datetime
-from utils.functions import clean_text, extract_by_regex, filter_by_regex
-import streamlit as st
+from utils.functions import (
+    clean_text, 
+    extract_by_regex, 
+    filter_by_regex, 
+    get_keys, 
+    get_coordinates)
 
 try:
     locale.setlocale(locale.LC_TIME, 'fr_FR.UTF-8')
@@ -79,6 +84,74 @@ class TripAdvisorSpecificRestaurantScraper(TripAdvisorScraper):
             return self.soup.find_all("div", class_="_c")
         print("Soup not initialized. Fetch the page first.")
         return []
+    
+    def extract_address(self):
+        # Try using span
+        address = self.soup.find('span', class_="biGQs _P pZUbB KxBGd", attrs={"data-automation": "restaurantsMapLinkOnName"})
+        if address:
+            address = address.text
+            google_key = get_keys()['google_maps_api_key']
+            if google_key:
+                coordinates = get_coordinates(address, google_key)
+
+            return {
+                "address": coordinates['address'] if coordinates else address,
+                "latitude": coordinates['latitude'] if coordinates else None,
+                "longitude": coordinates['longitude'] if coordinates else None,
+                "zip_code": coordinates['zip_code'] if coordinates else None,
+                "country": coordinates['country'] if coordinates else None,
+                "ville": coordinates['ville'] if coordinates else None,
+            }
+        return None
+    
+    def get_restaurant_info(self):
+        # Try using span
+        name = None
+        avg_review = None
+        about = None
+        price = None
+        reviews = None
+        type_resto = None
+        
+        name = self.soup.find('span', class_="oMoFy")
+        if name:
+            name = name.text
+            about = self.soup.find('div', class_="biGQs _P pZUbB avBIb KxBGd")
+            about = about.text if about else None
+        avg_review = self.soup.find('svg', class_="UctUV d H0 hzzSG").text
+        if avg_review:
+            avg_review = str(avg_review).replace(" sur 5\xa0bulles", "")
+            avg_review = re.sub(r",", ".", avg_review)
+        tags = self.soup.find_all('span', class_="biGQs _P pZUbB KxBGd")
+        if tags:
+            tags = [tag.text for tag in tags]
+            for i in tags:
+                if '€' in i:
+                    price = i
+                elif 'avis' in i:
+                    reviews = i
+                    reviews = reviews.replace("avis", "")
+                    reviews = re.sub(r"\s", "", reviews)
+        type_resto = self.soup.find('span', class_="abxVl VdWAl")
+        if type_resto:
+            type_resto = re.sub(r"€", "", type_resto.text)
+            type_resto = re.sub(r"-", "", type_resto)
+            type_resto = re.sub(r",", "", type_resto)
+            type_resto = re.sub(r"'", "\'", type_resto)
+            type_resto.strip()
+            
+        address = self.extract_address()
+                    
+        return {
+            "restaurant_name": name,
+            "restaurant_about": about,
+            "restaurant_avg_review": avg_review,
+            "restaurant_price": price,
+            "restaurant_reviews": reviews,
+            "restaurant_type_resto": type_resto,
+            "restaurant_url": self.url,
+            "restauranta_address": address
+        }
 
     def parse_review(self, review_card):
         """Parse data from a single review card."""
@@ -173,15 +246,7 @@ class TripAdvisorRestaurantsScraper(TripAdvisorScraper):
         else:
             restaurant_price = None
         if name:
-            name = name.replace("'", "") \
-            .replace("à", "a") \
-            .replace("é", "e") \
-            .replace("è", "e") \
-            .replace("ê", "e") \
-            .replace("ô", "o") \
-            .replace("î", "i") \
-            .replace("û", "u") \
-            .replace("ç", "c")
+            name = name.replace("'", " ")
         ranking, name = name.split(".", 1) if name else (None, None)
         # restaurant_name_csv_clean = ''.join(e for e in name if e.isalnum() or e == ' ')
         # restaurant_name_clean = restaurant_name_csv_clean.replace(' ', '_')

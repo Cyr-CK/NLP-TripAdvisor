@@ -3,9 +3,12 @@
 import streamlit as st
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
+from wordcloud import WordCloud
 
 from views import analysis_filtered
 from utils.db import get_downloaded_restaurants, get_restaurant_by_id
+from collections import Counter
+import altair as alt
 
 from utils.functions import (
     extract_types_from_df,
@@ -174,6 +177,10 @@ def analytics_page(df):
         )
 
         selected_names, names = restaurant_filters(df, TAB_TITLE)
+        with st.expander("Options de personnalisation"):
+            ignored_words_input = st.text_area("Entrez les mots que vous voulez ignorer (séparés par des espaces)")
+            ignored_words = ignored_words_input.split() if ignored_words_input else []
+            highlighted_words = st.text_area("Entrez les mots que vous voulez mettre en avant (séparés par des espaces, et c'est que pour le grephique des bars)")
 
         # Afficher la sélection filtrée
         if st.button("Démarrer l'analyse", key=f"start_analysis_{TAB_TITLE}"):
@@ -184,19 +191,123 @@ def analytics_page(df):
                 filtered_df = clean_text_df(filtered_df)
 
             with st.spinner("Création du nuage de mots en cours... ⏳"):
-                col1, col2 = st.columns(2)
-                with col1:
-                    wordcloud = generate_wordcloud(filtered_df)
-                    plt.figure(figsize=(10, 5))
-                    plt.imshow(wordcloud, interpolation="bilinear")
-                    plt.axis("off")
-                    plt.show()
-                    st.pyplot(plt)
+                bad_reviews = filtered_df[filtered_df['rating'].isin([1, 2])]
+                neutral_reviews = filtered_df[filtered_df['rating'] == 3]
+                good_reviews = filtered_df[filtered_df['rating'].isin([4, 5])]
+                
+                # Description du DataFrame
+                total_reviews = len(filtered_df)
+                unique_restaurants = filtered_df["restaurant_id"].nunique()
+                avg_reviews_per_restaurant = filtered_df.groupby("restaurant_name")["rating"].mean().round(1)
+                reviews_per_restaurant = filtered_df.groupby("restaurant_name")["rating"].count().round(1)
 
-                with col2:
-                    # Use the function to generate and display the chart
-                    bar_chart = generate_word_frequencies_chart(filtered_df)
-                    st.altair_chart(bar_chart, use_container_width=True)
+                st.write(f"Nombre total d'avis : {total_reviews}")
+                st.write(f"Nombre de restaurants uniques analysés : {unique_restaurants}")
+                colavg, colcount = st.columns(2)
+                with colavg:
+                    st.write("**Note moyenne par restaurant :**")
+                    st.write(avg_reviews_per_restaurant)
+                    
+                with colcount:
+                    st.write("**Nombre total d'avis par restaurant :**")
+                    st.write(reviews_per_restaurant)
+                # Afficher les nuages de mots pour chaque catégorie
+                col1, col2 = st.columns(2)
+                if not bad_reviews.empty:
+                    with col1:
+                            st.subheader(f"Nuage de mots des avis négatifs ({len(bad_reviews)} avis)")
+                            bad_wordcloud = generate_wordcloud(bad_reviews, ignored_words)
+                            plt.figure(figsize=(10, 5))
+                            plt.imshow(bad_wordcloud, interpolation="bilinear")
+                            plt.axis("off")
+                            plt.show()
+                            st.pyplot(plt)
+                            
+                    with col2:
+                            bar_chart, total_words = generate_word_frequencies_chart(bad_reviews, ignored_words, color="red")
+                            st.write(f"Nombre total de mots : {total_words}")
+                            st.altair_chart(bar_chart, use_container_width=True)
+                            
+                col3, col4 = st.columns(2)
+                
+                if not neutral_reviews.empty:
+                    with col3:
+                            st.subheader(f"Nuage de mots des avis neutres ({len(neutral_reviews)} avis)")
+                            neutral_wordcloud = generate_wordcloud(neutral_reviews, ignored_words,)
+                            plt.figure(figsize=(10, 5))
+                            plt.imshow(neutral_wordcloud, interpolation="bilinear")
+                            plt.axis("off")
+                            plt.show()
+                            st.pyplot(plt)
+                            
+                    with col4:
+                            bar_chart, total_words = generate_word_frequencies_chart(neutral_reviews, ignored_words, color="grey")
+                            st.write(f"Nombre total de mots : {total_words}")
+                            st.altair_chart(bar_chart, use_container_width=True)
+
+                col5, col6 = st.columns(2)
+                if not good_reviews.empty:
+                    with col5:
+                            st.subheader(f"Nuage de mots des avis positifs ({len(good_reviews)} avis)")
+                            good_wordcloud = generate_wordcloud(good_reviews, ignored_words)
+                            plt.figure(figsize=(10, 5))
+                            plt.imshow(good_wordcloud, interpolation="bilinear")
+                            plt.axis("off")
+                            plt.show()
+                            st.pyplot(plt)
+                    with col6:  
+                            bar_chart, total_words = generate_word_frequencies_chart(good_reviews, ignored_words, color="green")
+                            st.write(f"Nombre total de mots : {total_words}")
+                            st.altair_chart(bar_chart, use_container_width=True)
+                            
+                if highlighted_words:
+                    colword, colword2 = st.columns(2)
+                    with colword:
+                        st.write("Mots mis en avant :")
+                        st.write(highlighted_words)
+                        
+                        def filter_highlighted_words(reviews, highlighted_words):
+                            text_joined = " ".join(reviews["cleaned_text"])
+                            text_joined = text_joined.lower()
+                            text_joined = text_joined.split(" ")
+                            filtered_highlighted_words = [word for word in text_joined if word in highlighted_words]
+                            filtered_highlighted_words = [word for word in filtered_highlighted_words if len(word) > 1]
+                            return filtered_highlighted_words
+                        
+                        bad_highlighted_words = filter_highlighted_words(bad_reviews, highlighted_words)
+                        neutral_highlighted_words = filter_highlighted_words(neutral_reviews, highlighted_words)
+                        good_highlighted_words = filter_highlighted_words(good_reviews, highlighted_words)
+                        
+                        wordcloud = WordCloud(width=800, height=400, background_color="white").generate(
+                            " ".join(bad_highlighted_words + neutral_highlighted_words + good_highlighted_words)
+                        )
+                        plt.figure(figsize=(10, 5))
+                        plt.imshow(wordcloud, interpolation="bilinear")
+                        plt.axis("off")
+                        st.pyplot(plt)
+                        
+                    with colword2:
+                        import pandas as pd
+                        word_counts = Counter(bad_highlighted_words + neutral_highlighted_words + good_highlighted_words)
+                        word_counts_df = pd.DataFrame(word_counts.items(), columns=["word", "count"])
+                        word_counts_df["bad_count"] = word_counts_df["word"].apply(lambda x: bad_highlighted_words.count(x))
+                        word_counts_df["neutral_count"] = word_counts_df["word"].apply(lambda x: neutral_highlighted_words.count(x))
+                        word_counts_df["good_count"] = word_counts_df["word"].apply(lambda x: good_highlighted_words.count(x))
+
+                        bar_chart = alt.Chart(word_counts_df).transform_fold(
+                            ["bad_count", "neutral_count", "good_count"],
+                            as_=["Sentiment", "Count"]
+                        ).mark_bar().encode(
+                            y=alt.Y("word", sort="-x"),
+                            x="Count:Q",
+                            color=alt.Color("Sentiment:N", scale=alt.Scale(domain=["bad_count", "neutral_count", "good_count"], range=["red", "grey", "green"]))
+                        ).properties(
+                            width=600,
+                            height=400
+                        )
+
+                        st.altair_chart(bar_chart, use_container_width=True)
+                        
 
     ################################################################
     # WORD2VEC
