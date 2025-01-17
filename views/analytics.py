@@ -73,7 +73,7 @@ def restaurant_filters(df, tab_title):
     return selected_names, names
 
 
-def get_filtered_restaurant(df, selected_names, names):
+def get_filtered_restaurant(df, selected_names, names, relevance):
     """
     Fonction pour filtrer les restaurants sélectionnés par l'utilisateur.
     """
@@ -99,6 +99,9 @@ def get_filtered_restaurant(df, selected_names, names):
         # Obtenir les détails des restaurants par IDs
         restaurant_ids = filtered_df["restaurant_id"].tolist()
         filtered_df = get_restaurant_by_id(restaurant_ids)
+        if relevance:
+            avg = filtered_df["contributions"].median()
+            filtered_df = filtered_df[filtered_df["contributions"] >= avg]
         return filtered_df
 
 
@@ -142,12 +145,18 @@ def analytics_page(df):
         )
 
         selected_names, names = restaurant_filters(df, TAB_TITLE)
+
+        relevance = st.checkbox("Analyse des avis les plus pertinents ?", value=False,
+                                help="Seuls les avis émis par des internautes ayant un volume de contribution supérieur à la médiane seront pris en compte lors de l'analyse.",
+                                key=f"relevant_only_{TAB_TITLE}")
+
+        st.divider()
         # Afficher la sélection filtrée
         if st.button("Démarrer l'analyse", key=f"start_analysis_{TAB_TITLE}"):
             with st.spinner(
                 "Acquisition et pré-traitement des données sélectionnées... ⏳"
             ):
-                filtered_df = get_filtered_restaurant(df, selected_names, names)
+                filtered_df = get_filtered_restaurant(df, selected_names, names, relevance)
                 filtered_df = clean_text_df(filtered_df)
                 # analysis_filtered.analytics_filtered_page(filtered_df)
 
@@ -182,12 +191,17 @@ def analytics_page(df):
             ignored_words = ignored_words_input.split() if ignored_words_input else []
             highlighted_words = st.text_area("Entrez les mots que vous voulez mettre en avant (séparés par des espaces, et c'est que pour le grephique des bars)")
 
+        relevance = st.checkbox("Analyse des avis les plus pertinents ?", value=False,
+                                help="Seuls les avis émis par des internautes ayant un volume de contribution supérieur à la médiane seront pris en compte lors de l'analyse.",
+                                key=f"relevant_only_{TAB_TITLE}")
+
+        st.divider()
         # Afficher la sélection filtrée
         if st.button("Démarrer l'analyse", key=f"start_analysis_{TAB_TITLE}"):
             with st.spinner(
                 "Acquisition et pré-traitement des données sélectionnées... ⏳"
             ):
-                filtered_df = get_filtered_restaurant(df, selected_names, names)
+                filtered_df = get_filtered_restaurant(df, selected_names, names, relevance)
                 filtered_df = clean_text_df(filtered_df)
 
             with st.spinner("Création du nuage de mots en cours... ⏳"):
@@ -324,13 +338,24 @@ def analytics_page(df):
 
         selected_names, names = restaurant_filters(df, TAB_TITLE)
 
-        three_dim = st.checkbox("Analyse en 3D ? ", value=False)
+        # col1, col2, col3 = st.columns(3)
+        col1, col2 = st.columns(2)
+        with col1:
+            relevance = st.checkbox("Analyse des avis les plus pertinents ?", value=False,
+                                    help="Seuls les avis émis par des internautes ayant un volume de contribution supérieur à la médiane seront pris en compte lors de l'analyse.",
+                                    key=f"relevant_only_{TAB_TITLE}")
+        with col2:
+            three_dim = st.checkbox("Analyse en 3D ? ", value=False)
+        # with col3:
+        #     analysis_type = st.selectbox("Où mettre l'accent pour l'analyse ?", options=["Type de cuisine", "Fourchette de prix"])
+            
+        st.divider()
         # Afficher la sélection filtrée
         if st.button("Démarrer l'analyse", key=f"start_analysis_{TAB_TITLE}"):
             with st.spinner(
                 "Acquisition et pré-traitement des données sélectionnées... ⏳"
             ):
-                filtered_df = get_filtered_restaurant(df, selected_names, names)
+                filtered_df = get_filtered_restaurant(df, selected_names, names, relevance)
                 if three_dim and len(filtered_df["restaurant_id"].unique()) < 3:
                     st.warning("Veuillez sélectionner au moins trois restaurants.")
                     st.stop()
@@ -343,7 +368,11 @@ def analytics_page(df):
                 restaurant_coords, restaurant_names = generate_word2vec(
                     filtered_df, three_dim
                 )
-
+                # if analysis_type == "Type de cuisine":
+                #     classes = restaurant_info_supp["restaurant_type"]
+                # else: # analysis_type == "Fourchette de prix"
+                #     classes = restaurant_info_supp["restaurant_price"]
+                
                 # Create a new figure for the scatter plot
                 fig = go.Figure()
 
@@ -355,7 +384,10 @@ def analytics_page(df):
                             y=restaurant_coords[:, 1],
                             z=restaurant_coords[:, 2],
                             mode="markers+text",
-                            marker=dict(size=10, color="blue"),
+                            marker=dict(
+                                size=10, 
+                                color="blue"
+                                ),
                             text=restaurant_names,
                             textposition="top center",
                             hoverinfo="text",
@@ -381,7 +413,10 @@ def analytics_page(df):
                             x=restaurant_coords[:, 0],
                             y=restaurant_coords[:, 1],
                             mode="markers+text",
-                            marker=dict(size=10, color="blue"),
+                            marker=dict(
+                                size=10, 
+                                color="blue"
+                                ),
                             text=restaurant_names,
                             textposition="top center",
                             hoverinfo="text",
@@ -399,5 +434,3 @@ def analytics_page(df):
 
                 # Affichage du graphique dans Streamlit
                 st.plotly_chart(fig)
-                # st.write(f"Temps de traitement : {(end-start)/60} min. ({end - start} sec.)")
-                # st.write(f"{(end-start)/len(filtered_df['restaurant_id'].unique())} sec/restaurant en moyenne.")

@@ -3,9 +3,8 @@ This module contains the "LLM" page.
 """
 
 import streamlit as st
-import os
 from utils.MistralAPI import MistralAPI
-from utils.db import get_downloaded_restaurants, get_reviews_one_restaurant
+from utils.db import get_reviews_one_restaurant
 
 
 def reviews_treatment(reviews, restaurant_name, restaurant_info):
@@ -18,9 +17,16 @@ def reviews_treatment(reviews, restaurant_name, restaurant_info):
     reviews = reviews.replace('"', "")
     reviews = reviews.to_string(index=False)
 
-    query = f"Le restaurant est appellé : {restaurant_name}. \
-        Voici des infos à propos du restaurant : {restaurant_info}: \
-        Résume ces commentaires du restaurant. Le but est de décrire ses qualités et défauts."
+    query = (
+        "Vous êtes un critique culinaire professionnel. "
+        f"Votre tâche consiste à analyser et résumer les avis sur le restaurant '{restaurant_name}', en tenant compte des informations suivantes : {restaurant_info}. "
+        "Commencez par une introduction présentant le nom du restaurant, son type de cuisine, et sa localisation. "
+        "Décrivez ensuite les points forts et faibles du restaurant en deux paragraphes distincts, avec des listes claires pour chaque catégorie. "
+        "Mentionnez, si possible, les allergènes présents dans les plats ainsi que l'existence d'options végétariennes, halal ou autres régimes spécifiques. "
+        "Ajoutez une recommandation générale basée sur l'analyse des avis en conclusion. "
+        "Si des avis sont contradictoires, indiquez-le explicitement. "
+        "Rédigez votre réponse de manière claire, professionnelle et engageante."
+    )
     query_and_reviews = query + reviews
 
     return query_and_reviews
@@ -40,24 +46,17 @@ def llm_page(df):
     ].values[0]
 
     if st.button("Résumer les avis", key="button_name_selection"):
-        # Get the reviews of the selected restaurant
-        mistral_api_key = os.environ.get("MISTRAL_API_KEY")
-        
-        try: 
+        try:
             st.write("\n\n\n")
             filtered_df = get_reviews_one_restaurant(restaurant_id)
             reviews = filtered_df["review_text"]
             restaurant_info = df[df["restaurant_name"] == restaurant_name]
 
             # Call the API to analyse the reviews of the restaurant
-            mistral8b = MistralAPI(model="ministral-3b-latest")
-            reviews_cleaned = reviews_treatment(reviews, restaurant_name, restaurant_info)
-            st.write(mistral8b.query(reviews_cleaned))
+            ministral = MistralAPI(model="ministral-3b-latest")
+            prompt = reviews_treatment(reviews, restaurant_name, restaurant_info)
+            st.write(ministral.query(prompt))
 
-            # Get the reviews of the restaurant
-            st.write("\n\n\n")
-            st.write("Commentaires du restaurant:")
-            st.write(get_reviews_one_restaurant(restaurant_id))
         except Exception as e:
             st.warning("Please set up the MISTRAL_API_KEY in the Streamlit secrets.")
             print(f"Error: {e}")

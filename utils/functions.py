@@ -256,7 +256,7 @@ def generate_word2vec(df: pd.DataFrame, three_dimensional: bool = False):
 
     Args:
         df (pd.DataFrame): The input dataframe containing 'cleaned_text' column.
-        three_dimensional (bool): Whether the analysis should be done in 3D
+        three_dimensional (bool): Whether the analysis should be done in 3D.
 
     Returns:
         restaurant_coords (np.array): PCA-projected coordinates of the restaurants.
@@ -268,20 +268,15 @@ def generate_word2vec(df: pd.DataFrame, three_dimensional: bool = False):
     # if not {'cleaned_text'}.issubset(df.columns):
     #     raise ValueError("Dataframe must contain 'cleaned_text' column.")
 
-    # df_reviews = df.copy()
-    df["tokens"] = df["cleaned_text"].apply(lambda x: word_tokenize(x.lower()))
+    df_reviews = df.copy()
+    df_reviews["tokens"] = df_reviews["cleaned_text"].apply(
+        lambda x: word_tokenize(x.lower())
+    )
 
-    # merged_reviews = df.groupby("restaurant_id").agg({
-    #     "cleaned_text": lambda x: ". ".join(x), "restaurant_name":"first"
-    # }).reset_index()
-
-    # merged_reviews["tokens"] = merged_reviews["cleaned_text"].apply(
-    #     lambda x: word_tokenize(x.lower())
-    # )
 
     # Entraîner le modèle Word2Vec
     model = Word2Vec(
-        sentences=df["tokens"],  # df["tokens"],
+        sentences=df_reviews["tokens"],  # df["tokens"],
         vector_size=100,
         window=5,
         min_count=1,
@@ -298,28 +293,50 @@ def generate_word2vec(df: pd.DataFrame, three_dimensional: bool = False):
         return np.mean(vectors, axis=0)
 
     # Calculer les vecteurs moyens pour chaque restaurant
-    df["avg_vector"] = df["tokens"].apply(get_avg_vector)
+    df_reviews["avg_vector"] = df_reviews["tokens"].apply(get_avg_vector)
 
-    # merged_reviews["avg_vector"] = merged_reviews["tokens"].apply(get_avg_vector)
+    df_reviews["contributions"] = df_reviews["contributions"].fillna(1)
 
-    # Agréger les vecteurs par restaurant
-    restaurant_vectors = (
-        df.groupby("restaurant_id")
-        .agg(
-            {"avg_vector": lambda x: np.mean(list(x), axis=0), "restaurant_id": "first"}
+
+    def weighted_avg_vector(vectors, weights):
+        vectors = np.vstack(vectors)
+        return np.average(vectors, axis=0, weights=weights)
+    
+    weighted_reviews = df_reviews.groupby("restaurant_id").agg(
+        weighted_avg_vector=pd.NamedAgg(
+            column="avg_vector",
+            aggfunc=lambda x: weighted_avg_vector(x, df_reviews.loc[x.index, 'contributions'])
         )
-        .reset_index(drop=True)
     )
 
-    restaurant_vectors = restaurant_vectors.drop_duplicates(subset="restaurant_id")
-    restaurant_vectors = restaurant_vectors.set_index("restaurant_id")
-    restaurant_vectors["restaurant_name"] = df.drop_duplicates(
-        subset="restaurant_id"
-    ).set_index("restaurant_id")["restaurant_name"]
-    restaurant_vectors.reset_index(inplace=True)
-    restaurant_names = restaurant_vectors["restaurant_name"]
 
-    # restaurant_names = merged_reviews["restaurant_name"]
+    # Agréger les vecteurs par restaurant
+    # restaurant_vectors = (
+    #     df_reviews.groupby("restaurant_id")
+    #     .agg(
+    #         {"avg_vector": lambda x: np.mean(list(x), axis=0), "restaurant_id": "first"}
+    #     )
+    #     .reset_index(drop=True)
+    # )
+
+    # restaurant_vectors = restaurant_vectors.drop_duplicates(subset="restaurant_id")
+    # restaurant_vectors = restaurant_vectors.set_index("restaurant_id")
+    # restaurant_vectors["restaurant_name"] = df_reviews.drop_duplicates(
+    #     subset="restaurant_id"
+    # ).set_index("restaurant_id")["restaurant_name"]
+    # restaurant_vectors.reset_index(inplace=True)
+    # restaurant_names = restaurant_vectors["restaurant_name"]
+
+    weighted_reviews["restaurant_name"] = df_reviews.drop_duplicates(subset="restaurant_id").set_index("restaurant_id")["restaurant_name"]
+    weighted_reviews["restaurant_type"] = df_reviews.drop_duplicates(subset="restaurant_id").set_index("restaurant_id")["restaurant_type"]
+    weighted_reviews["restaurant_price"] = df_reviews.drop_duplicates(subset="restaurant_id").set_index("restaurant_id")["restaurant_price"]
+    weighted_reviews.reset_index(inplace=True)
+    # restaurant_info_supp = pd.DataFrame()
+    # restaurant_info_supp["restaurant_name"] = weighted_reviews["restaurant_name"]
+    # restaurant_info_supp["restaurant_type"] = weighted_reviews["restaurant_type"]
+    # restaurant_info_supp["restaurant_price"] = weighted_reviews["restaurant_price"]
+
+    restaurant_names = weighted_reviews["restaurant_name"]
     if three_dimensional:
         ncp = 3
     else:
@@ -327,7 +344,7 @@ def generate_word2vec(df: pd.DataFrame, three_dimensional: bool = False):
     # Réduction de dimensionnalité avec ACP
     pca = PCA(n_components=ncp)
     restaurant_coords = pca.fit_transform(
-        np.array(restaurant_vectors["avg_vector"].tolist())
+        np.array(weighted_reviews["weighted_avg_vector"].tolist())
     )
 
     return restaurant_coords, restaurant_names
@@ -368,15 +385,20 @@ def generate_spider_plot(emotions_df):
                 fill="toself",
                 name=restaurant_name,
                 opacity=0.5,
+                legendgroup=restaurant_name
             )
         )
 
     fig.update_layout(
         polar=dict(radialaxis=dict(visible=True, range=[0, 1])),
-        showlegend=False,
+        showlegend=True,
         title="Comparaison des émotions par restaurant",
         width=800,
         height=600,
+        legend=dict(
+            title="Légende",
+            groupclick="toggleitem"
+        )
     )
 
     return fig

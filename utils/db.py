@@ -343,10 +343,12 @@ def get_restaurant_by_id(restaurant_ids):
                 r.restaurant_name,
                 r.restaurant_avg_review,
                 r.restaurant_type,
+                r.restaurant_price,
                 l.latitude,
                 l.longitude,
                 r2.rating,
-                r2.review_text 
+                r2.review_text,
+                r2.contributions 
             FROM restaurants r
             JOIN locations l ON l.restaurant_id = r.restaurant_id
             JOIN reviews r2 ON r2.restaurant_id = r.restaurant_id 
