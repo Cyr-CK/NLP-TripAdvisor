@@ -67,4 +67,4 @@ Install your favorite
 
 - **[@maxenceLIOGIER](https://github.com/maxenceLIOGIER)**
 - **[@Cyr-CK](https://github.com/Cyr-CK)**
-- **[@halcolo](https://github.com/halcolo)**
+- **[@jdalfons](https://github.com/jdalfons)**
