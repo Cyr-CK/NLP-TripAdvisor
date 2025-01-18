@@ -281,6 +281,7 @@ def generate_word2vec(df: pd.DataFrame, three_dimensional: bool = False):
         window=5,
         min_count=1,
         workers=4,
+        sg = 0 # 1 = skip-gram, 0 = CBOW
     )
 
     # Prétraitement des avis

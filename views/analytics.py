@@ -187,9 +187,9 @@ def analytics_page(df):
 
         selected_names, names = restaurant_filters(df, TAB_TITLE)
         with st.expander("Options de personnalisation"):
-            ignored_words_input = st.text_area("Entrez les mots que vous voulez ignorer (séparés par des espaces)")
+            ignored_words_input = st.text_area("Entrez les mots que vous souhaitez ignorer (séparés par des espaces)")
             ignored_words = ignored_words_input.split() if ignored_words_input else []
-            highlighted_words = st.text_area("Entrez les mots que vous voulez mettre en avant (séparés par des espaces, et c'est que pour le grephique des bars)")
+            highlighted_words = st.text_area("Entrez les mots que vous souhaitez mettre en avant (séparés par des espaces)")
 
         relevance = st.checkbox("Analyse des avis les plus pertinents ?", value=False,
                                 help="Seuls les avis émis par des internautes ayant un volume de contribution supérieur à la médiane seront pris en compte lors de l'analyse.",
