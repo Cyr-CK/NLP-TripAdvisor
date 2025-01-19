@@ -56,13 +56,15 @@ environment:
     ```bash
     docker-compose up --build -d
     ```
-    and then, when you're finished
-   ```bash
-    docker-compose down
-    ```
 
 4. **Access the web application:**
     The application will be available at `http://localhost:8052`
+
+5. **Close the Docker Image**
+   When you are done with the webb app, you can do this command on your terminal.
+   ```bash
+    docker-compose down
+    ```
 
 ### Local set up
 Install your favorite
