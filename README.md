@@ -56,8 +56,12 @@ environment:
     ```bash
     docker-compose up --build -d
     ```
+    and then, when you're finished
+   ```bash
+    docker-compose down
+    ```
 
-3. **Access the web application:**
+4. **Access the web application:**
     The application will be available at `http://localhost:8052`
 
 ### Local set up
