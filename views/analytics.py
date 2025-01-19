@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from wordcloud import WordCloud
 
-from views import analysis_filtered
 from utils.db import get_downloaded_restaurants, get_restaurant_by_id
 from collections import Counter
 import altair as alt
