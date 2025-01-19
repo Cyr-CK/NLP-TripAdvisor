@@ -13,18 +13,40 @@ The database follows a star schema, dividing locations, reviews, and restaurant 
 
 ![UML](assets/img/nlp_sql_uml.png)
 
-## How to Set Up
+# How to Set Up
 
 ## API Keys Setup
+
+You can configure the API keys in two ways:
+
+### 1. Local Environment Variables
+
+Docker will take local variables from your environment file or machine. You can configure it using an `.env` file like the following:
+
+```sh
+DB=postgres
+POSTGRES_HOST=localhost
+POSTGRES_USER=nlp
+POSTGRES_PASSWORD=nlp
+POSTGRES_DBNAME=nlp
+POSTGRES_PORT=32001
+
+MISTRAL_URL=http://mistralservice:8501
+MISTRAL_API_KEY=${MISTRAL_API_KEY}
+GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}
+```
+
+### 2. Direct Modification
 
 Before starting, you need API keys from different services. Follow the steps below to obtain and configure the necessary keys.
 
 Ensure your `docker-compose` file includes the following environment variables:
 ```yaml
 environment:
-  - MISTRAL_API_KEY=${MISTRAL_API_KEY}
-  - GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}
+    - MISTRAL_API_KEY=${MISTRAL_API_KEY}
+    - GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}
 ```
+
 
 ### Mistral AI
 
